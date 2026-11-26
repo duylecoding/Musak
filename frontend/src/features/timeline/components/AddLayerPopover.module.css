@@ -1,0 +1,229 @@
+.body {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.dropTime {
+  font-family: var(--font-mono);
+  color: var(--text-accent);
+}
+
+.closeBtn {
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.closeBtn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.refSection {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kicker {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.emptyText {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: var(--space-2) 0;
+}
+
+.sfxList {
+  max-height: 208px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sfxRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+}
+
+.sfxRow:hover {
+  border-color: var(--accent-sky);
+}
+
+.previewBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.previewBtn:hover {
+  background-color: var(--bg-hover);
+}
+
+.previewBtnActive {
+  background-color: var(--accent-amber-soft);
+  color: var(--accent-amber);
+  border: 1px solid var(--accent-amber);
+}
+
+.sfxMeta {
+  min-width: 0;
+  flex: 1;
+}
+
+.sfxName {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sfxDesc {
+  font-size: 10px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropBtn {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  background-color: var(--accent-primary);
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.dropBtn:hover:not(:disabled) {
+  background-color: var(--accent-primary-hover);
+}
+
+.dropBtn:disabled {
+  opacity: 0.5;
+}
+
+.refList {
+  max-height: 128px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.refCard {
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.refTitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.refBtn {
+  padding: 2px var(--space-2);
+  border-radius: 4px;
+  background-color: var(--bg-surface);
+  font-size: 10px;
+  color: var(--text-primary);
+}
+
+.refBtn:hover:not(:disabled) {
+  background-color: var(--accent-primary-soft);
+}
+
+.refStemBtn {
+  padding: 2px var(--space-2);
+  border-radius: 4px;
+  background-color: var(--accent-primary-soft);
+  font-size: 10px;
+  text-transform: capitalize;
+  color: var(--text-accent);
+}
+
+.refStemBtn:hover:not(:disabled) {
+  background-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.iconClose {
+  width: 14px;
+  height: 14px;
+}
+
+.iconPlay {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+  margin-left: 1px;
+}
+
+.iconStop {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}

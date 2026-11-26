@@ -1,0 +1,32 @@
+.trigger {
+  display: inline-flex;
+}
+
+.tooltipPanel {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  pointer-events: none;
+  max-width: 260px;
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-tooltip);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-tooltip);
+  padding: var(--space-2) var(--space-3);
+  box-shadow: var(--shadow-tooltip);
+  transition: opacity 100ms ease;
+}
+
+.tooltipTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-accent);
+  margin-bottom: 2px;
+  line-height: 1.25;
+}
+
+.tooltipBody {
+  font-size: 11px;
+  color: var(--text-primary);
+  line-height: 1.35;
+  font-weight: 400;
+}

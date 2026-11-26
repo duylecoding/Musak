@@ -6,13 +6,18 @@ import os
 import shutil
 import threading
 from pathlib import Path
+from typing import Literal
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
 TARGET_SAMPLE_RATE = 44100
 STEM_NAMES: tuple[str, ...] = ("vocals", "drums", "bass", "other")
+StemDevice = Literal["auto", "cuda", "cpu"]
+VALID_STEM_DEVICES: tuple[str, ...] = ("auto", "cuda", "cpu")
 
 _api_key_lock = threading.Lock()
 _gemini_api_key: str | None = None
+_stem_device_lock = threading.Lock()
+_stem_device: StemDevice = "auto"
 
 
 def get_gemini_model() -> str:
@@ -67,6 +72,29 @@ def is_api_key_configured() -> bool:
     """Return True if a non-empty Gemini API key is present in memory."""
     with _api_key_lock:
         return bool(_gemini_api_key)
+
+
+def get_stem_device() -> StemDevice:
+    """Return the configured Demucs stem separation device preference ('auto', 'cuda', or 'cpu')."""
+    with _stem_device_lock:
+        return _stem_device
+
+
+def set_stem_device(device: str) -> StemDevice:
+    """Set Demucs stem separation device preference thread-safely in memory."""
+    global _stem_device
+    cleaned = (device or "").strip().lower()
+    if cleaned not in VALID_STEM_DEVICES:
+        raise ValueError(f"Invalid stem device '{device}'. Must be one of {VALID_STEM_DEVICES}.")
+    typed: StemDevice = cleaned  # type: ignore[assignment]
+    with _stem_device_lock:
+        _stem_device = typed
+    return typed
+
+
+def is_auto_separate_enabled() -> bool:
+    """Return True unless MUSAK_DISABLE_AUTO_SEPARATE=1 is set in the environment."""
+    return os.environ.get("MUSAK_DISABLE_AUTO_SEPARATE", "").strip() != "1"
 
 
 def get_cuda_info() -> tuple[bool, str | None]:

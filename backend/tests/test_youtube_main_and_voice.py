@@ -10,9 +10,10 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from musak import gemini_agent, main as musak_main
+from musak import gemini_agent
 from musak.config import STEM_NAMES
 from musak.models import ProjectState
+from musak.routers import chat as chat_router, references as refs_router, track_ops as track_ops_mod
 from musak.storage import store
 from tests.conftest import make_synthetic_track, wav_bytes_from_array
 
@@ -47,7 +48,7 @@ def test_load_main_track_from_youtube_and_stale_cleanup(
 
     # Mock YouTube metadata and audio download (no external network calls)
     monkeypatch.setattr(
-        musak_main,
+        track_ops_mod,
         "fetch_youtube_metadata",
         lambda url: {
             "youtube_id": "dQw4w9WgXcQ",
@@ -63,7 +64,7 @@ def test_load_main_track_from_youtube_and_stale_cleanup(
         sf.write(str(output_wav), audio, target_sr, subtype="PCM_16")
         return output_wav
 
-    monkeypatch.setattr(musak_main, "download_youtube_audio", _fake_download)
+    monkeypatch.setattr(track_ops_mod, "download_youtube_audio", _fake_download)
 
     r_yt = client.post(
         f"/api/projects/{pid}/main-track/youtube",
@@ -153,7 +154,7 @@ def test_promote_youtube_reference_triggers_on_demand_download(
     assert client.post(f"/api/projects/{pid}/main-track/from-reference/ref_missing").status_code == 404
 
     monkeypatch.setattr(
-        musak_main,
+        refs_router,
         "fetch_youtube_metadata",
         lambda url: {
             "youtube_id": "dQw4w9WgXcQ",
@@ -176,7 +177,7 @@ def test_promote_youtube_reference_triggers_on_demand_download(
         sf.write(str(output_wav), audio, target_sr, subtype="PCM_16")
         return output_wav
 
-    monkeypatch.setattr(musak_main, "download_youtube_audio", _fake_download)
+    monkeypatch.setattr(track_ops_mod, "download_youtube_audio", _fake_download)
 
     r_prom = client.post(f"/api/projects/{pid}/main-track/from-reference/{ref_id}")
     assert r_prom.status_code == 200
@@ -229,13 +230,13 @@ def test_voice_transcribe_endpoint(
     assert r_bad_mime.status_code == 400
 
     # Oversized upload (> 15 MB) -> 400
-    monkeypatch.setattr(musak_main, "MAX_VOICE_UPLOAD_BYTES", 32)
+    monkeypatch.setattr(chat_router, "MAX_VOICE_UPLOAD_BYTES", 32)
     r_big = client.post(
         "/api/voice/transcribe",
         files={"file": ("big.webm", b"x" * 64, "audio/webm")},
     )
     assert r_big.status_code == 400
-    monkeypatch.setattr(musak_main, "MAX_VOICE_UPLOAD_BYTES", 15 * 1024 * 1024)
+    monkeypatch.setattr(chat_router, "MAX_VOICE_UPLOAD_BYTES", 15 * 1024 * 1024)
 
     # Mock Gemini client and capture the Part sent to generate_content
     captured: list[Any] = []
@@ -311,7 +312,7 @@ def test_reference_stem_worker_downloads_youtube_and_separates(
 
     pid = client.post("/api/projects", json={"name": "YT Ref Stems"}).json()["id"]
     monkeypatch.setattr(
-        musak_main,
+        refs_router,
         "fetch_youtube_metadata",
         lambda url: {
             "youtube_id": "dQw4w9WgXcQ",
@@ -370,7 +371,7 @@ def test_promote_reference_deleted_mid_download_returns_404(
 ) -> None:
     pid = client.post("/api/projects", json={"name": "Deleted Ref Race"}).json()["id"]
     monkeypatch.setattr(
-        musak_main,
+        refs_router,
         "fetch_youtube_metadata",
         lambda url: {
             "youtube_id": "dQw4w9WgXcQ",
@@ -394,6 +395,6 @@ def test_promote_reference_deleted_mid_download_returns_404(
         store.update_project(pid, _drop_ref)
         return output_wav
 
-    monkeypatch.setattr(musak_main, "download_youtube_audio", _download_and_delete_ref)
+    monkeypatch.setattr(track_ops_mod, "download_youtube_audio", _download_and_delete_ref)
     r = client.post(f"/api/projects/{pid}/main-track/from-reference/{ref_id}")
     assert r.status_code == 404

@@ -22,7 +22,7 @@ def test_health_and_in_memory_api_key(client: TestClient, data_dir: Path) -> Non
     assert body["api_key_configured"] is False
     assert body["model"]
 
-    secret = "AIzaSyTEST_IN_MEMORY_ONLY_KEY_987654321"
+    secret = "test-in-memory-only-dummy-value"
     r_set = client.post("/api/settings/api-key", json={"api_key": secret})
     assert r_set.status_code == 200
     assert r_set.json() == {"api_key_configured": True}

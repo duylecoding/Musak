@@ -1,0 +1,146 @@
+.row {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--bg-panel);
+  transition: background-color 150ms ease;
+}
+
+.row:hover {
+  background-color: var(--bg-surface);
+}
+
+.addRow {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--bg-app);
+}
+
+.stickyHeader {
+  width: 156px;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: var(--z-sticky-header);
+  background-color: var(--bg-panel);
+  border-right: 1px solid var(--border-default);
+  padding: var(--space-2) 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.kicker {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--accent-sky);
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.actionBtn {
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.actionBtn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.mutedBtn {
+  color: var(--accent-rose);
+  background-color: var(--accent-rose-soft);
+}
+
+.deleteBtn:hover {
+  color: var(--accent-rose);
+  background-color: var(--accent-rose-soft);
+}
+
+.layerTrack {
+  flex: 1;
+  height: 56px;
+  position: relative;
+  user-select: none;
+}
+
+.addBtn {
+  width: 100%;
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-md);
+  background-color: var(--accent-primary-soft);
+  border: 1px dashed var(--accent-primary);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.addBtn:hover {
+  background-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.addHintTrack {
+  flex: 1;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.addHintTrack:hover {
+  color: var(--text-secondary);
+}
+
+.hintAccent {
+  color: var(--text-accent);
+  margin: 0 3px;
+}
+
+.hintSky {
+  color: var(--accent-sky);
+  margin: 0 3px;
+}
+
+.iconSm {
+  width: 12px;
+  height: 12px;
+}
+
+.iconAdd {
+  width: 14px;
+  height: 14px;
+}

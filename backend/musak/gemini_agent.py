@@ -20,11 +20,13 @@ from musak.config import STEM_NAMES
 from musak.models import (
     EditOperation,
     EditProposal,
+    LyricHook,
     MomentPin,
     ProjectState,
     ReferenceTrack,
     TimeSelection,
 )
+from musak.sfx import KNOWN_SFX_IDS, get_sfx_item
 from musak.storage import generate_id
 
 logger = logging.getLogger(__name__)
@@ -37,9 +39,12 @@ VALID_OP_TYPES = {
     "lofi_eq",
     "bass_boost",
     "borrow_stem",
+    "tempo_pitch",
+    "add_sfx",
 }
 VALID_STYLES = {"imitate", "mashup", "creative"}
 VALID_REF_STEMS = {"vocals", "drums", "bass", "other", "full"}
+VALID_HOOK_KINDS = {"hook", "lyric", "drop"}
 
 
 def create_compact_wav_clip(
@@ -201,7 +206,28 @@ def _sanitize_operation(
             clean["gain_db"] = gain_db
         return EditOperation.model_validate(clean)
 
-    # Standard DSP operations
+    # Standard DSP operations & add_sfx
+    if op_type == "add_sfx":
+        sfx_id = raw_op.get("sfx_id")
+        if not isinstance(sfx_id, str) or sfx_id not in KNOWN_SFX_IDS:
+            return None
+        sfx_item = get_sfx_item(sfx_id)
+        s = _clamp_time(raw_op.get("start"), default_start)
+        sfx_default_end = round(min(duration, s + sfx_item.default_duration), 3) if sfx_item is not None else default_end
+        e = _clamp_time(raw_op.get("end"), sfx_default_end if raw_op.get("end") is None else default_end)
+        if e <= s:
+            e = round(min(duration, s + (sfx_item.default_duration if sfx_item is not None else 2.0)), 3)
+        if e <= s:
+            return None
+        clean["start"] = s
+        clean["end"] = e
+        clean["sfx_id"] = sfx_id
+        clean["gain_db"] = _float_or(raw_op.get("gain_db"), -24.0, 12.0, 0.0)
+        layer_id = raw_op.get("layer_id")
+        if isinstance(layer_id, str) and layer_id.strip():
+            clean["layer_id"] = layer_id.strip()[:64]
+        return EditOperation.model_validate(clean)
+
     s = _clamp_time(raw_op.get("start"), default_start)
     e = _clamp_time(raw_op.get("end"), default_end)
     if e <= s:
@@ -239,8 +265,57 @@ def _sanitize_operation(
     elif op_type == "bass_boost":
         clean["gain_db"] = _float_or(raw_op.get("gain_db"), -6.0, 15.0, 6.0)
         clean["cutoff_hz"] = _float_or(raw_op.get("cutoff_hz"), 50.0, 300.0, 120.0)
+    elif op_type == "tempo_pitch":
+        clean["speed_rate"] = _float_or(raw_op.get("speed_rate"), 0.5, 1.6, 1.0)
+        clean["semitones"] = _float_or(raw_op.get("semitones"), -12.0, 12.0, 0.0)
+        clean["add_reverb"] = bool(raw_op.get("add_reverb", False))
+        clean["reverb_wet"] = _float_or(raw_op.get("reverb_wet"), 0.0, 0.8, 0.35)
 
     return EditOperation.model_validate(clean)
+
+
+def _generate_content(
+    client: Any,
+    model: str,
+    contents: Any,
+    response_mime_type: str | None = None,
+    temperature: float = 0.4,
+    max_output_tokens: int = 600,
+) -> Any:
+    """Invoke `client.models.generate_content` with MINIMAL thinking and tight output caps.
+
+    Gracefully retries once without `thinking_config` if a custom model rejects it.
+    """
+    cfg_kwargs: dict[str, Any] = {
+        "temperature": temperature,
+        "max_output_tokens": max_output_tokens,
+    }
+    if response_mime_type:
+        cfg_kwargs["response_mime_type"] = response_mime_type
+
+    thinking_cfg = None
+    if hasattr(types, "ThinkingConfig") and hasattr(types, "ThinkingLevel"):
+        thinking_cfg = types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL)
+
+    if thinking_cfg is not None:
+        try:
+            return client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=types.GenerateContentConfig(**cfg_kwargs, thinking_config=thinking_cfg),
+            )
+        except Exception as exc:
+            err_lower = str(exc).lower()
+            if any(tok in err_lower for tok in ("thinking", "invalid_argument", "unsupported", "400")):
+                logger.info("Retrying generate_content without thinking_config for model %s: %s", model, exc)
+            else:
+                raise
+
+    return client.models.generate_content(
+        model=model,
+        contents=contents,
+        config=types.GenerateContentConfig(**cfg_kwargs),
+    )
 
 
 def auto_tag_reference(
@@ -283,25 +358,21 @@ def auto_tag_reference(
         raise ValueError("Reference has neither a YouTube URL nor local audio available for auto-tagging.")
 
     prompt = (
-        f"You are an expert music producer helping a non-musician remix songs.\n"
-        f"Listen to this reference track titled '{ref.title}'. {window_note}\n"
-        f"Identify 3 to 5 standout production moments (e.g., drum dropout, filter sweep buildup, "
-        f"vocal chop hook, heavy bass drop, lo-fi breakdown, reverb throw transition).\n"
-        f"Return STRICT JSON ONLY matching this schema:\n"
-        f'{{"moments": [{{"label": "Short catchy name", "start": 12.0, "end": 20.0, '
-        f'"note": "Plain-English explanation of what makes this moment sound cool"}}]}}\n'
-        f"All timestamps must be numbers in seconds with start < end."
+        f"Identify 3-5 standout remix moments in '{ref.title}'. {window_note}\n"
+        f"Return STRICT JSON ONLY: "
+        f'{{"moments":[{{"label":"Short name","start":12.0,"end":20.0,"note":"Plain-English vibe"}}]}} '
+        f"(seconds, start < end)."
     )
     contents.append(prompt)
 
     client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
+    response = _generate_content(
+        client=client,
         model=model,
         contents=contents,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.4,
-        ),
+        response_mime_type="application/json",
+        temperature=0.3,
+        max_output_tokens=500,
     )
 
     payload = _parse_json_payload(response.text or "{}")
@@ -344,7 +415,7 @@ def run_producer_chat(
     api_key: str,
     model: str,
 ) -> tuple[str, list[EditProposal]]:
-    """Run Gemini Producer chat and return `(reply_text, validated_proposals)`."""
+    """Run fast, token-efficient Gemini Producer chat returning `(reply_text, validated_proposals)`."""
     if not api_key:
         raise ValueError("Gemini API key is required for producer chat.")
     if project.main_track is None:
@@ -358,151 +429,151 @@ def run_producer_chat(
         sel_end = max(sel_start, min(selection.end, duration))
         if sel_end <= sel_start:
             sel_end = min(duration, sel_start + 8.0)
+    elif main.sections:
+        best_sec = max(main.sections, key=lambda s: (s.label in ("Drop", "Chorus"), s.energy))
+        sel_start = max(0.0, min(best_sec.start, duration))
+        sel_end = min(duration, best_sec.end, sel_start + 16.0)
+        if sel_end <= sel_start:
+            sel_end = min(duration, sel_start + 12.0)
     else:
         sel_start = 0.0
-        sel_end = min(duration, 24.0)
+        sel_end = min(duration, 16.0)
 
-    clip_start = max(0.0, sel_start - 2.0)
-    clip_end = min(duration, sel_end + 2.0)
+    # Compact 12 kHz mono main clip (max 16s with 1.5s padding)
+    clip_start = max(0.0, sel_start - 1.5)
+    clip_end = min(duration, sel_end + 1.5)
     main_clip_bytes = create_compact_wav_clip(
         main_audio_path,
         start=clip_start,
         end=clip_end,
-        max_seconds=30.0,
-        target_sr=16000,
+        max_seconds=16.0,
+        target_sr=12000,
     )
 
     selected_refs = [r for r in project.references if r.id in set(reference_ids)] if reference_ids else []
     valid_ref_ids = {r.id for r in project.references}
     downloaded_ref_ids = {r.id for r in project.references if r.audio_downloaded and r.id in ref_audio_paths}
 
-    context_doc = {
-        "main_track": {
+    context_doc: dict[str, Any] = {
+        "track": {
             "name": main.name,
-            "duration": main.duration,
+            "dur": round(main.duration, 2),
             "bpm": main.bpm,
             "key": main.key,
-            "stems_status": main.stems_status,
             "stems_ready": main.stems_status == "ready",
-            "sections": [s.model_dump() for s in main.sections],
+            "sections": [
+                {"l": s.label, "s": round(s.start, 1), "e": round(s.end, 1)}
+                for s in main.sections
+            ],
         },
-        "user_selection": {"start": round(sel_start, 2), "end": round(sel_end, 2)},
-        "audio_clip_window": {"start": round(clip_start, 2), "end": round(clip_end, 2)},
-        "existing_edits": [
-            {"title": e.title, "start": e.start, "end": e.end, "enabled": e.enabled}
-            for e in project.edits
-        ],
-        "attached_references": [
+        "sel": [round(sel_start, 2), round(sel_end, 2)],
+        "clip": [round(clip_start, 2), round(clip_end, 2)],
+        "edits": [e.title for e in project.edits if e.enabled][-5:],
+        "refs": [
             {
                 "id": r.id,
                 "title": r.title,
-                "source_type": r.source_type,
-                "duration": r.duration,
                 "bpm": r.bpm,
                 "key": r.key,
-                "audio_downloaded": r.audio_downloaded,
-                "stems_status": r.stems_status,
-                "moments": [m.model_dump() for m in r.moments],
+                "dl": r.audio_downloaded,
+                "stems": r.stems_status == "ready",
+                "moments": [
+                    {"l": m.label, "s": round(m.start, 1), "e": round(m.end, 1)}
+                    for m in r.moments[:5]
+                ],
             }
             for r in selected_refs
         ],
     }
+    if selection is not None and selection.lane and selection.lane != "all":
+        context_doc["lane"] = selection.lane
 
     mashup_rule = (
-        "You MAY include a 'mashup' proposal using 'borrow_stem' ONLY for references where audio_downloaded is true."
+        "borrow_stem allowed ONLY for refs with dl=true."
         if any(r.id in downloaded_ref_ids for r in selected_refs)
-        else "Do NOT use 'borrow_stem' because no attached reference has downloaded audio yet."
+        else "NO borrow_stem (no downloaded ref audio)."
     )
 
     system_prompt = (
-        "You are Musak's friendly, approachable AI music producer helping a non-musician remix their song.\n"
-        "Speak warmly in plain English without intimidating jargon.\n"
-        "Listen carefully to the user's song clip (and any attached reference track) and propose 1 to 3 distinct, "
-        "concrete, immediately auditionable remix options.\n\n"
-        "Allowed EditOperation types and exact fields:\n"
-        '1. {"type": "stem_gain", "stems": ["drums"|"bass"|"vocals"|"other"], "start": sec, "end": sec, "gain_db": -60..12, "fade_ms": 30, "snap_to_beat": true}\n'
-        '2. {"type": "filter_sweep", "stems": [...], "start": sec, "end": sec, "mode": "highpass"|"lowpass", "start_hz": 200, "end_hz": 2400, "snap_to_beat": true}\n'
-        '3. {"type": "reverb_throw", "stems": [...], "start": sec, "end": sec, "room_size": 0.1..1.0, "wet_level": 0.1..1.0, "snap_to_beat": true}\n'
-        '4. {"type": "delay_throw", "stems": [...], "start": sec, "end": sec, "delay_beats": 0.25|0.5|0.75|1.0, "feedback": 0.1..0.8, "mix": 0.2..0.8, "snap_to_beat": true}\n'
-        '5. {"type": "lofi_eq", "stems": [...], "start": sec, "end": sec, "low_cut_hz": 300, "high_cut_hz": 3200, "drive_db": 8, "snap_to_beat": true}\n'
-        '6. {"type": "bass_boost", "stems": ["bass"|"drums"], "start": sec, "end": sec, "gain_db": 6, "cutoff_hz": 120, "snap_to_beat": true}\n'
-        '7. {"type": "borrow_stem", "ref_id": "<ref_id>", "ref_stem": "vocals"|"drums"|"bass"|"other"|"full", '
-        '"ref_start": sec, "ref_end": sec, "target_start": sec, "target_end": sec, '
-        '"replace_main_stems": ["drums"], "match_bpm": true, "match_key": true, "snap_to_beat": true}\n\n'
-        f"{mashup_rule}\n"
-        f"All main-track timestamps MUST be within [0, {duration:.2f}]. Focus proposals around the user's selection.\n"
-        "Return STRICT JSON ONLY:\n"
-        '{\n'
-        '  "reply": "Short friendly producer message explaining your ideas",\n'
-        '  "proposals": [\n'
-        '    {\n'
-        '      "title": "Short catchy title",\n'
-        '      "summary": "1-sentence plain-English description of how it sounds",\n'
-        '      "style": "imitate" | "mashup" | "creative",\n'
-        '      "start": 12.0,\n'
-        '      "end": 20.0,\n'
-        '      "operations": [ ... ]\n'
-        '    }\n'
-        '  ]\n'
-        '}\n'
+        "You are Musak's friendly AI music producer helping a non-musician make SMALL, SURGICAL, moment-by-moment edits so they stay in control — NOT full-song rewrites.\n"
+        "PUSHBACK RULE: If the user asks to rewrite/remix the whole song, redo the whole track in another artist's style, or gives a broad unfocused request, "
+        "gently push back in 1-2 warm sentences explaining Musak shines one moment at a time and suggest a specific detected section + timestamp (e.g. Drop/Chorus), "
+        "AND still return 1 small starter proposal (<=16s, 1-2 ops) on that moment so they can audition immediately.\n"
+        "RULES: reply MUST be 1-2 short plain-English sentences (<=40 words). Return 1-2 focused proposals max, each with 1-2 surgical ops. "
+        "Avoid full-song edits UNLESS explicitly asked for Slowed+Reverb, Sped Up, or Pitch Shift. "
+        "If context includes \"lane\" (vocals|drums|bass|other), focus your edits on that specific stem!\n"
+        "OPS:\n"
+        'stem_gain:{type,stems,start,end,gain_db:-60..12,fade_ms,snap_to_beat}\n'
+        'filter_sweep:{type,stems,start,end,mode:"highpass"|"lowpass",start_hz,end_hz,snap_to_beat}\n'
+        'reverb_throw:{type,stems,start,end,room_size:0.1..1,wet_level:0.1..1,snap_to_beat}\n'
+        'delay_throw:{type,stems,start,end,delay_beats:0.25|0.5|0.75|1,feedback:0.1..0.8,mix:0.2..0.8,snap_to_beat}\n'
+        'lofi_eq:{type,stems,start,end,low_cut_hz,high_cut_hz,drive_db,snap_to_beat}\n'
+        'bass_boost:{type,stems,start,end,gain_db,cutoff_hz,snap_to_beat}\n'
+        'borrow_stem:{type,ref_id,ref_stem:"vocals"|"drums"|"bass"|"other"|"full",ref_start,ref_end,target_start,target_end,replace_main_stems,match_bpm,match_key,snap_to_beat}\n'
+        'tempo_pitch:{type,start,end,speed_rate:0.5..1.6,semitones:-12..12,add_reverb,reverb_wet:0..0.8,snap_to_beat:false}\n'
+        'add_sfx:{type,sfx_id:"riser_noise"|"riser_synth"|"sub_impact"|"reverse_cymbal"|"snare_roll"|"tape_stop",start,end,gain_db:-24..12,snap_to_beat}\n'
+        f"{mashup_rule} Timestamps in [0,{duration:.2f}].\n"
+        'STRICT JSON ONLY: {"reply":"...","proposals":[{"title":"...","summary":"1 short sentence","style":"imitate"|"mashup"|"creative","start":12.0,"end":20.0,"operations":[...]}]}'
     )
 
     contents: list[Any] = [
         system_prompt,
-        f"Project Context JSON:\n{json.dumps(context_doc, indent=2)}",
+        f"CTX:{json.dumps(context_doc, separators=(',', ':'))}",
         types.Part.from_bytes(data=main_clip_bytes, mime_type="audio/wav"),
     ]
 
-    # Attach up to 1 YouTube reference via Part.from_uri AND up to 1 local/downloaded clip
-    youtube_attached = False
-    local_attached = False
+    # Attach at most 1 reference media item: prefer compact 12s @ 12 kHz local WAV (even for downloaded YouTube refs)
+    ref_media_attached = False
     for ref in selected_refs:
-        if ref.source_type == "youtube" and ref.youtube_url and not youtube_attached:
-            contents.append(types.Part.from_uri(file_uri=ref.youtube_url, mime_type="video/*"))
-            youtube_attached = True
-        elif not local_attached and ref.id in ref_audio_paths and ref_audio_paths[ref.id].is_file():
+        local_path = ref_audio_paths.get(ref.id)
+        if local_path is not None and local_path.is_file():
             ref_s = ref.moments[0].start if ref.moments else 0.0
-            ref_e = ref.moments[0].end if ref.moments else 20.0
+            ref_e = ref.moments[0].end if ref.moments else 12.0
             ref_bytes = create_compact_wav_clip(
-                ref_audio_paths[ref.id],
+                local_path,
                 start=ref_s,
                 end=ref_e,
-                max_seconds=20.0,
-                target_sr=16000,
+                max_seconds=12.0,
+                target_sr=12000,
             )
             contents.append(types.Part.from_bytes(data=ref_bytes, mime_type="audio/wav"))
-            local_attached = True
-        if youtube_attached and local_attached:
+            ref_media_attached = True
             break
 
-    recent_history = project.chat_messages[-6:]
-    if recent_history:
-        history_lines = [f"{m.role.upper()}: {m.content}" for m in recent_history]
-        contents.append("Recent conversation:\n" + "\n".join(history_lines))
+    if not ref_media_attached:
+        for ref in selected_refs:
+            if ref.source_type == "youtube" and ref.youtube_url:
+                contents.append(types.Part.from_uri(file_uri=ref.youtube_url, mime_type="video/*"))
+                break
 
-    contents.append(f"User request: {user_message}")
+    recent_history = project.chat_messages[-3:]
+    if recent_history:
+        history_lines = [f"{m.role[0].upper()}: {m.content[:180]}" for m in recent_history]
+        contents.append("History:\n" + "\n".join(history_lines))
+
+    contents.append(f"User: {user_message}")
 
     client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
+    response = _generate_content(
+        client=client,
         model=model,
         contents=contents,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.6,
-        ),
+        response_mime_type="application/json",
+        temperature=0.45,
+        max_output_tokens=600,
     )
 
     payload = _parse_json_payload(response.text or "{}")
     if not isinstance(payload, dict):
-        payload = {"reply": str(response.text or "Here are a few remix ideas!"), "proposals": []}
+        payload = {"reply": str(response.text or "Here are a couple focused ideas!"), "proposals": []}
 
-    reply = str(payload.get("reply") or "Here are some remix ideas tailored to your track!").strip()
+    reply = str(payload.get("reply") or "Here are focused remix ideas for this moment.").strip()
     raw_proposals = payload.get("proposals")
     if not isinstance(raw_proposals, list):
         raw_proposals = []
 
     proposals: list[EditProposal] = []
-    for raw_prop in raw_proposals[:3]:
+    for raw_prop in raw_proposals[:2]:
         if not isinstance(raw_prop, dict):
             continue
         style = raw_prop.get("style", "creative")
@@ -521,7 +592,7 @@ def run_producer_chat(
         sanitized_ops: list[EditOperation] = []
         raw_ops = raw_prop.get("operations", [])
         if isinstance(raw_ops, list):
-            for raw_op in raw_ops:
+            for raw_op in raw_ops[:3]:
                 op = _sanitize_operation(
                     raw_op=raw_op,
                     duration=duration,
@@ -576,24 +647,106 @@ def transcribe_voice_audio(
         raise ValueError("Voice audio payload is empty.")
 
     prompt = (
-        "Transcribe the user's spoken music-editing or remixing request accurately.\n"
-        "- Format spoken timestamps cleanly using m:ss (e.g., 0:45, 1:12).\n"
-        "- Preserve song titles, artist names, track references, and musical terms accurately.\n"
-        "- Return ONLY the transcribed text with no surrounding quotes, markdown, or extra commentary.\n"
-        "- If the audio is silent or completely unintelligible, return an empty string."
+        "Transcribe the spoken music-editing request accurately. "
+        "Format spoken timestamps as m:ss (e.g. 0:45, 1:12), preserve song/artist/track names, "
+        "and return ONLY the transcribed text (no quotes or commentary; empty string if silent)."
     )
 
     client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
+    response = _generate_content(
+        client=client,
         model=model,
         contents=[
             types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
             prompt,
         ],
-        config=types.GenerateContentConfig(temperature=0.1),
+        response_mime_type=None,
+        temperature=0.0,
+        max_output_tokens=200,
     )
 
     text = (response.text or "").strip()
     if len(text) >= 2 and ((text[0] == '"' and text[-1] == '"') or (text[0] == "'" and text[-1] == "'")):
         text = text[1:-1].strip()
     return text
+
+
+def extract_lyric_hooks(
+    audio_path: Path,
+    duration: float,
+    api_key: str,
+    model: str,
+) -> list[LyricHook]:
+    """Use Gemini to extract 5-10 timestamped clickable vocal lyrics, hooks, and big drops."""
+    if not api_key:
+        raise ValueError("Gemini API key is required for lyric/hook extraction.")
+    if not audio_path.is_file():
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    info = sf.info(str(audio_path))
+    file_dur = info.frames / float(info.samplerate) if info.samplerate > 0 else duration
+    base_dur = min(duration, file_dur) if (duration > 0 and file_dur > 0) else max(duration, file_dur, 0.5)
+    analyzed_end = round(min(max(base_dur, 0.5), 120.0), 2)
+
+    wav_bytes = create_compact_wav_clip(
+        audio_path,
+        start=0.0,
+        end=analyzed_end,
+        max_seconds=120.0,
+        target_sr=12000,
+    )
+
+    prompt = (
+        f"Audio clip covers [0.0s, {analyzed_end:.1f}s]. "
+        "Identify 5-10 standout vocal lyric snippets (3-10 words), catchy hooks, or big instrumental drops.\n"
+        'Return STRICT JSON ONLY: {"hooks":[{"text":"...","start":12.5,"end":18.0,"kind":"hook"|"lyric"|"drop"}]}\n'
+        f"Timestamps MUST satisfy 0 <= start < end <= {analyzed_end:.1f}."
+    )
+
+    client = genai.Client(api_key=api_key)
+    response = _generate_content(
+        client=client,
+        model=model,
+        contents=[
+            types.Part.from_bytes(data=wav_bytes, mime_type="audio/wav"),
+            prompt,
+        ],
+        response_mime_type="application/json",
+        temperature=0.2,
+        max_output_tokens=600,
+    )
+
+    payload = _parse_json_payload(response.text or "{}")
+    raw_hooks = payload.get("hooks", []) if isinstance(payload, dict) else (payload if isinstance(payload, list) else [])
+
+    hooks: list[LyricHook] = []
+    for item in raw_hooks[:10]:
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get("text") or "").strip()[:140]
+        if not text:
+            continue
+        kind = str(item.get("kind") or "lyric").strip().lower()
+        if kind not in VALID_HOOK_KINDS:
+            kind = "lyric"
+        try:
+            max_start = max(0.0, analyzed_end - 0.5)
+            start = max(0.0, min(float(item.get("start", 0.0)), max_start))
+            raw_end = float(item.get("end", start + 4.0))
+            end = min(analyzed_end, max(start + 0.5, raw_end))
+        except (TypeError, ValueError):
+            continue
+        if end <= start:
+            continue
+        hooks.append(
+            LyricHook(
+                id=generate_id("hook"),
+                text=text,
+                start=round(start, 2),
+                end=round(end, 2),
+                kind=kind,  # type: ignore[arg-type]
+            )
+        )
+
+    hooks.sort(key=lambda h: h.start)
+    return hooks

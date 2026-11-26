@@ -1,0 +1,173 @@
+.aside {
+  width: 350px;
+  flex-shrink: 0;
+  background-color: var(--bg-panel);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+@media (min-width: 1280px) {
+  .aside { width: 390px; }
+}
+
+.header {
+  padding: 14px var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.headerTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.headerIcon { width: 14px; height: 14px; color: var(--accent-primary); }
+.headerSubtitle { margin: 2px 0 0; font-size: 11px; color: var(--text-muted); }
+.copilotBadge {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  background-color: var(--accent-primary-soft);
+  color: var(--text-accent);
+  border: 1px solid var(--border-tooltip);
+}
+
+.apiBanner {
+  margin: var(--space-3) var(--space-3) 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background-color: var(--accent-amber-soft);
+  border: 1px solid color-mix(in srgb, var(--accent-amber) 35%, transparent);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.apiBannerIcon { width: 16px; height: 16px; color: var(--accent-amber); flex-shrink: 0; margin-top: 2px; }
+.apiBannerBody { flex: 1; min-width: 0; }
+.apiBannerTitle { margin: 0; font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.apiBannerText { margin: 2px 0 0; font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+.apiBannerBtn {
+  margin-top: var(--space-2);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background-color: var(--accent-amber);
+  color: var(--bg-app);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) 14px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-4) 0;
+  gap: var(--space-4);
+}
+.emptyHero { text-align: center; padding: 0 var(--space-2); }
+.emptyIconBox {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-xl);
+  background-color: var(--accent-primary-soft);
+  border: 1px solid var(--border-tooltip);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-3);
+}
+.emptyIcon { width: 20px; height: 20px; color: var(--text-accent); }
+.emptyTitle { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.emptySubtitle { margin: var(--space-1) 0 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+.promptSection { display: flex; flex-direction: column; gap: 6px; }
+.promptLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0 var(--space-1);
+}
+.promptBtn {
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  font-size: 12px;
+  color: var(--text-primary);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.promptBtn:hover:not(:disabled) { background-color: var(--bg-elevated); border-color: var(--border-tooltip); }
+.promptBtn:disabled { opacity: 0.4; }
+
+.messageRow { display: flex; flex-direction: column; }
+.messageRowUser { align-items: flex-end; }
+.messageRowAssistant { align-items: flex-start; }
+
+.bubble { max-width: 92%; border-radius: var(--radius-xl); padding: 10px 14px; font-size: 12px; line-height: 1.5; }
+.bubbleUser { background-color: var(--accent-primary-hover); color: var(--text-primary); border-bottom-right-radius: 4px; }
+.bubbleAssistant {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  border-bottom-left-radius: 4px;
+}
+.bubbleMeta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-bottom: 6px; }
+.bubbleChip {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-scrim);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bubbleText { white-space: pre-wrap; }
+.proposalList { width: 100%; margin-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2); }
+
+.thinkingBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--text-accent);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-tooltip);
+  border-radius: var(--radius-lg);
+  padding: 10px var(--space-3);
+}
+.thinkingRow { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.thinkingTimer { font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+.iconSm { width: 14px; height: 14px; flex-shrink: 0; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

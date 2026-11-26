@@ -14,6 +14,14 @@ class Section(BaseModel):
     energy: float = Field(ge=0.0, le=1.0)
 
 
+class LyricHook(BaseModel):
+    id: str
+    text: str
+    start: float
+    end: float
+    kind: Literal["hook", "lyric", "drop"] = "lyric"
+
+
 class MainTrack(BaseModel):
     id: str
     name: str
@@ -23,6 +31,7 @@ class MainTrack(BaseModel):
     key: str
     beats: list[float] = Field(default_factory=list)
     sections: list[Section] = Field(default_factory=list)
+    lyric_hooks: list[LyricHook] = Field(default_factory=list)
     stems_status: Literal["none", "processing", "ready", "error"] = "none"
     stems_error: str | None = None
     stems: list[str] = Field(default_factory=list)
@@ -40,6 +49,14 @@ class MomentPin(BaseModel):
     source: Literal["user", "gemini"] = "user"
 
 
+class MashupCompatibility(BaseModel):
+    score: int = Field(ge=0, le=100)
+    rating: Literal["great", "good", "tricky"]
+    bpm_diff: float
+    semitone_diff: int
+    summary: str
+
+
 class ReferenceTrack(BaseModel):
     id: str
     title: str
@@ -54,6 +71,7 @@ class ReferenceTrack(BaseModel):
     stems_error: str | None = None
     audio_url: str | None = None
     moments: list[MomentPin] = Field(default_factory=list)
+    compatibility: MashupCompatibility | None = None
 
 
 EditOperationType = Literal[
@@ -64,6 +82,8 @@ EditOperationType = Literal[
     "lofi_eq",
     "bass_boost",
     "borrow_stem",
+    "tempo_pitch",
+    "add_sfx",
 ]
 
 
@@ -103,6 +123,14 @@ class EditOperation(BaseModel):
     replace_main_stems: list[str] | None = None
     match_bpm: bool | None = None
     match_key: bool | None = None
+    # tempo_pitch
+    speed_rate: float | None = None
+    semitones: float | None = None
+    add_reverb: bool | None = None
+    reverb_wet: float | None = None
+    # add_sfx
+    sfx_id: str | None = None
+    layer_id: str | None = None
 
 
 class EditBlock(BaseModel):
@@ -125,15 +153,23 @@ class EditProposal(BaseModel):
     start: float
     end: float
     operations: list[EditOperation] = Field(default_factory=list)
+    base_operations: list[EditOperation] = Field(default_factory=list)
+    intensity: float = 1.0
+    keep_vocals_clear: bool = False
+    shift_beats: float = 0.0
     preview_url: str | None = None
     preview_start: float = 0.0
     preview_end: float = 0.0
     applied: bool = False
 
 
+StemLane = Literal["all", "vocals", "drums", "bass", "other"]
+
+
 class TimeSelection(BaseModel):
     start: float
     end: float
+    lane: StemLane | None = None
 
 
 class ChatMessage(BaseModel):
@@ -178,6 +214,37 @@ class HealthResponse(BaseModel):
     ffmpeg_available: bool
     api_key_configured: bool
     model: str
+    stem_device: Literal["auto", "cuda", "cpu"] = "auto"
+
+
+class StemDeviceRequest(BaseModel):
+    device: Literal["auto", "cuda", "cpu"]
+
+
+class StemDeviceResponse(BaseModel):
+    stem_device: Literal["auto", "cuda", "cpu"]
+
+
+class WaveformPeaksResponse(BaseModel):
+    duration: float
+    buckets: int
+    main: list[float]
+    rendered: list[float] | None = None
+    stems: dict[str, list[float]] = Field(default_factory=dict)
+
+
+class SfxItem(BaseModel):
+    id: str
+    name: str
+    category: Literal["riser", "impact", "transition", "drums"]
+    description: str
+    default_duration: float
+    bpm_synced: bool
+    preview_url: str
+
+
+class SfxListResponse(BaseModel):
+    items: list[SfxItem]
 
 
 class ApiKeyRequest(BaseModel):
@@ -221,7 +288,36 @@ class DeleteProjectResponse(BaseModel):
 
 
 class ExportRequest(BaseModel):
-    format: Literal["wav", "mp3"] = "wav"
+    format: Literal["wav", "mp3", "zip"] = "wav"
+    target: Literal["remix", "instrumental", "vocals", "stems_zip"] = "remix"
+    master_preset: Literal["off", "balanced", "club", "warm"] = "off"
+
+
+MashupMode = Literal[
+    "ref_vocals_on_main",
+    "main_vocals_on_ref",
+    "ref_drums_on_main",
+    "smart_auto",
+]
+
+
+class MashupRequest(BaseModel):
+    ref_id: str = Field(min_length=1, max_length=128)
+    mode: MashupMode = "smart_auto"
+    start: float | None = Field(default=None, ge=0.0)
+    end: float | None = Field(default=None, ge=0.0)
+
+    @model_validator(mode="after")
+    def _valid_optional_range(self) -> MashupRequest:
+        if self.start is not None and self.end is not None and self.end <= self.start:
+            raise ValueError("Mashup end time must be greater than start time.")
+        return self
+
+
+class TuneProposalRequest(BaseModel):
+    intensity: float | None = Field(default=None, ge=0.25, le=1.75)
+    keep_vocals_clear: bool | None = None
+    shift_beats: float | None = Field(default=None, ge=-16.0, le=16.0)
 
 
 class YouTubeReferenceRequest(BaseModel):
@@ -280,8 +376,31 @@ class CreateEditRequest(BaseModel):
         return self
 
 
-class PatchEditRequest(BaseModel):
+class UpdateEditRequest(BaseModel):
     enabled: bool | None = None
+    start: float | None = Field(default=None, ge=0.0)
+    end: float | None = Field(default=None, ge=0.0)
+    title: str | None = Field(default=None, max_length=200)
+    gain_db: float | None = Field(default=None, ge=-80.0, le=18.0)
+
+    @field_validator("title")
+    @classmethod
+    def _non_blank_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Edit title cannot be empty or whitespace.")
+        return cleaned
+
+    @model_validator(mode="after")
+    def _valid_optional_range(self) -> UpdateEditRequest:
+        if self.start is not None and self.end is not None and self.end <= self.start:
+            raise ValueError("Edit end time must be greater than start time.")
+        return self
+
+
+PatchEditRequest = UpdateEditRequest
 
 
 class ChatRequest(BaseModel):

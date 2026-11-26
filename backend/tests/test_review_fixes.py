@@ -303,7 +303,7 @@ def test_gemini_zero_values_eof_clip_and_local_plus_youtube_refs(
     assert len(data) > 0
 
     # 3. run_producer_chat attaches BOTH a local ref clip AND a YouTube ref appearing AFTER it
-    from musak import main as musak_main
+    from musak.routers import references as refs_router
 
     pid = client.post("/api/projects", json={"name": "Dual Ref Chat"}).json()["id"]
     main_wav = wav_bytes_from_array(make_synthetic_track(duration=6.0))
@@ -315,7 +315,7 @@ def test_gemini_zero_values_eof_clip_and_local_plus_youtube_refs(
     ).json()["references"][0]["id"]
 
     monkeypatch.setattr(
-        musak_main,
+        refs_router,
         "fetch_youtube_metadata",
         lambda url: {
             "youtube_id": "dQw4w9WgXcQ",
@@ -373,10 +373,27 @@ def test_gemini_zero_values_eof_clip_and_local_plus_youtube_refs(
     sent_parts = captured[0]
     inline_parts = [p for p in sent_parts if getattr(p, "inline_data", None) is not None]
     uri_parts = [p for p in sent_parts if getattr(p, "file_data", None) is not None]
-    # 2 inline WAV clips (main + local ref) AND 1 YouTube URI part!
-    assert len(inline_parts) == 2
-    assert len(uri_parts) == 1
-    assert uri_parts[0].file_data.file_uri == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    # Token-efficient cap: at most 1 reference media item, preferring compact local WAV over YouTube video
+    assert len(inline_parts) == 2  # main clip + 1 local ref clip
+    assert len(uri_parts) == 0
+
+    # When ONLY an undownloaded YouTube reference is attached, falls back to Part.from_uri
+    captured.clear()
+    r_yt_only = client.post(
+        f"/api/projects/{pid}/chat",
+        headers={"X-Gemini-Api-Key": "test-key"},
+        json={
+            "message": "Borrow the transition vibe from the YouTube ref",
+            "selection": {"start": 1.0, "end": 3.0},
+            "reference_ids": [yt_ref_id],
+        },
+    )
+    assert r_yt_only.status_code == 200
+    yt_inline = [p for p in captured[0] if getattr(p, "inline_data", None) is not None]
+    yt_uri = [p for p in captured[0] if getattr(p, "file_data", None) is not None]
+    assert len(yt_inline) == 1  # main clip only
+    assert len(yt_uri) == 1
+    assert yt_uri[0].file_data.file_uri == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
     # Also verify local auto-tag includes explicit analyzed window note
     captured.clear()

@@ -1,0 +1,225 @@
+.bar {
+  position: fixed;
+  z-index: var(--z-popover);
+  border-radius: var(--radius-xl);
+  background-color: var(--bg-tooltip);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-tooltip);
+  box-shadow: var(--shadow-popover);
+  padding: 6px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: 92vw;
+}
+
+.targetPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-md);
+  background-color: var(--accent-primary-soft);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dot {
+  color: var(--text-accent);
+}
+
+.rangeText {
+  font-family: var(--font-mono);
+}
+
+.barsBtn {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.barsBtn:hover {
+  background-color: var(--accent-primary-soft);
+  color: var(--text-primary);
+}
+
+.divider {
+  width: 1px;
+  height: 16px;
+  background-color: var(--border-default);
+}
+
+.muteBtn {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  background-color: var(--accent-rose-soft);
+  border: 1px solid var(--accent-rose);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent-rose);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.muteBtn:disabled {
+  opacity: 0.4;
+}
+
+.menuWrap {
+  position: relative;
+}
+
+.menuBtn {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.menuBtn:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+}
+
+.menuBtn:disabled {
+  opacity: 0.4;
+}
+
+.dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-popover);
+  padding: var(--space-1) 0;
+  z-index: var(--z-popover);
+}
+
+.volumeDropdown {
+  width: 128px;
+}
+
+.fxDropdown {
+  width: 212px;
+}
+
+.volumeItem {
+  width: 100%;
+  padding: 6px var(--space-3);
+  text-align: left;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.volumeItem:hover,
+.fxItem:hover {
+  background-color: var(--accent-primary-soft);
+}
+
+.volumeHint {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  color: var(--text-secondary);
+}
+
+.fxItem {
+  width: 100%;
+  padding: 6px var(--space-3);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fxMeta {
+  min-width: 0;
+}
+
+.fxLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.fxTip {
+  font-size: 9px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.geminiBtn {
+  padding: var(--space-1) 10px;
+  border-radius: var(--radius-md);
+  background-color: var(--accent-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.geminiBtn:hover {
+  background-color: var(--accent-primary-hover);
+}
+
+.closeBtn {
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  display: inline-flex;
+}
+
+.closeBtn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.iconSm {
+  width: 12px;
+  height: 12px;
+}
+
+.iconChevron {
+  width: 12px;
+  height: 12px;
+  opacity: 0.75;
+}
+
+.iconAmber {
+  width: 12px;
+  height: 12px;
+  color: var(--accent-amber);
+}
+
+.iconFx {
+  width: 14px;
+  height: 14px;
+  color: var(--text-accent);
+  flex-shrink: 0;
+}
+
+.iconClose {
+  width: 14px;
+  height: 14px;
+}

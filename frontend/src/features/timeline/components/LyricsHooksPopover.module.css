@@ -1,0 +1,139 @@
+.body {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.closeBtn {
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.closeBtn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.scanBtn {
+  width: 100%;
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-lg);
+  background-color: var(--accent-primary-soft);
+  border: 1px solid var(--accent-primary);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.scanBtn:hover:not(:disabled) {
+  background-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.scanBtn:disabled {
+  opacity: 0.5;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-2) 0;
+}
+
+.list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hookPill {
+  width: 100%;
+  padding: var(--space-2) 10px;
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.hookPill:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--lane-vocals);
+}
+
+.hookLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.quoteIcon {
+  width: 12px;
+  height: 12px;
+  color: var(--lane-vocals);
+  flex-shrink: 0;
+}
+
+.hookText {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hookTime {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.iconSm {
+  width: 14px;
+  height: 14px;
+}
+
+.iconSpin {
+  width: 14px;
+  height: 14px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

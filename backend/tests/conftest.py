@@ -15,7 +15,7 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from musak.config import clear_api_key
+from musak.config import clear_api_key, set_stem_device
 from musak.main import app
 
 
@@ -89,9 +89,12 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     d = tmp_path / "musak_projects"
     d.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("MUSAK_DATA_DIR", str(d))
+    monkeypatch.setenv("MUSAK_DISABLE_AUTO_SEPARATE", "1")
     clear_api_key()
+    set_stem_device("auto")
     yield d
     clear_api_key()
+    set_stem_device("auto")
 
 
 @pytest.fixture()

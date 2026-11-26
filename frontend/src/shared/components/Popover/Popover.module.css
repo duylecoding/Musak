@@ -1,0 +1,12 @@
+.popoverPanel {
+  position: fixed;
+  z-index: var(--z-popover);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-popover);
+  color: var(--text-primary);
+  padding: var(--space-2);
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+}

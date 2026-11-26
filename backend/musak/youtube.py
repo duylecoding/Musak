@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import tempfile
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -72,7 +75,7 @@ def canonical_youtube_url(video_id: str) -> str:
 
 
 def fetch_youtube_metadata(url: str) -> dict[str, Any]:
-    """Fetch lightweight YouTube metadata (title + duration) without downloading media."""
+    """Fetch lightweight YouTube metadata (fast oEmbed first, yt-dlp fallback) without downloading media."""
     video_id = extract_youtube_id(url)
     canon_url = canonical_youtube_url(video_id)
     fallback: dict[str, Any] = {
@@ -81,6 +84,23 @@ def fetch_youtube_metadata(url: str) -> dict[str, Any]:
         "title": f"YouTube ({video_id})",
         "duration": None,
     }
+
+    oembed_url = f"https://www.youtube.com/oembed?url={urllib.parse.quote(canon_url, safe='')}&format=json"
+    try:
+        with urllib.request.urlopen(oembed_url, timeout=3) as resp:
+            raw = resp.read().decode("utf-8")
+            oembed_data = json.loads(raw)
+        if isinstance(oembed_data, dict):
+            title = str(oembed_data.get("title") or "").strip()
+            if title:
+                return {
+                    "youtube_id": video_id,
+                    "youtube_url": canon_url,
+                    "title": title,
+                    "duration": None,
+                }
+    except Exception as exc:
+        logger.debug("YouTube oEmbed lookup failed for %s (%s); falling back to yt-dlp.", video_id, exc)
 
     try:
         import yt_dlp

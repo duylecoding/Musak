@@ -15,7 +15,7 @@ import soundfile as sf
 from scipy.signal import resample_poly
 
 from musak.config import TARGET_SAMPLE_RATE, get_ffmpeg_path
-from musak.models import Section
+from musak.models import MashupCompatibility, Section
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +234,65 @@ def semitone_diff_between_keys(src_key: str | None, dst_key: str | None) -> int:
     return int(diff)
 
 
+def compute_mashup_compatibility(
+    main_bpm: float | None,
+    main_key: str | None,
+    ref_bpm: float | None,
+    ref_key: str | None,
+) -> MashupCompatibility | None:
+    """Compute a 0..100 mashup compatibility score accounting for half/double-time BPM and circular key distance."""
+    if main_bpm is None or ref_bpm is None or main_bpm <= 0.0 or ref_bpm <= 0.0:
+        return None
+
+    candidates = [
+        (abs(main_bpm - ref_bpm), False),
+        (abs(main_bpm - ref_bpm * 2.0), True),
+        (abs(main_bpm - ref_bpm / 2.0), True),
+    ]
+    best_diff, used_half_double = min(candidates, key=lambda item: item[0])
+    bpm_diff = round(float(best_diff), 1)
+
+    has_keys = parse_key(main_key) is not None and parse_key(ref_key) is not None
+    semitone_diff = abs(semitone_diff_between_keys(ref_key, main_key)) if has_keys else 0
+
+    bpm_penalty = min(55.0, (bpm_diff / max(float(main_bpm), 60.0)) * 220.0)
+    key_penalty = semitone_diff * 6.5 if has_keys else 8.0
+    score = int(round(max(0.0, min(100.0, 100.0 - bpm_penalty - key_penalty))))
+
+    if score >= 80:
+        rating = "great"
+        prefix = "Great match"
+    elif score >= 55:
+        rating = "good"
+        prefix = "Good match"
+    else:
+        rating = "tricky"
+        prefix = "Tricky match"
+
+    if bpm_diff < 0.5:
+        bpm_part = "same tempo (half/double-time)" if used_half_double else "same BPM"
+    else:
+        bpm_num = f"{int(round(bpm_diff))}" if abs(bpm_diff - round(bpm_diff)) < 0.05 else f"{bpm_diff:.1f}"
+        bpm_part = f"{bpm_num} BPM apart (half/double-time)" if used_half_double else f"{bpm_num} BPM apart"
+
+    if not has_keys:
+        key_part = "key will auto-match on download"
+    elif semitone_diff == 0:
+        key_part = "same key"
+    elif semitone_diff == 1:
+        key_part = "only 1 semitone off"
+    else:
+        key_part = f"{semitone_diff} semitones off"
+
+    return MashupCompatibility(
+        score=score,
+        rating=rating,
+        bpm_diff=bpm_diff,
+        semitone_diff=semitone_diff,
+        summary=f"{prefix} — {bpm_part} & {key_part}",
+    )
+
+
 def detect_bpm_and_beats(y_mono: np.ndarray, sr: int, duration: float) -> tuple[float, list[float]]:
     """Detect BPM and beat timestamps in seconds."""
     if duration <= 0.1 or float(np.max(np.abs(y_mono))) < 1e-6:
@@ -389,3 +448,59 @@ def analyze_audio(audio: np.ndarray, sr: int = TARGET_SAMPLE_RATE) -> AudioAnaly
         beats=beats,
         sections=sections,
     )
+
+
+def compute_waveform_peaks(audio_path: Path, buckets: int = 400) -> list[float]:
+    """Compute normalized `[0.0, 1.0]` waveform peak amplitudes using chunked SoundFile reads."""
+    safe_buckets = max(1, min(int(buckets), 4000))
+    if not audio_path.is_file():
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    with sf.SoundFile(str(audio_path), mode="r") as handle:
+        total_frames = int(handle.frames)
+        if total_frames <= 0:
+            return [0.0] * safe_buckets
+
+        if total_frames >= safe_buckets:
+            edges = (np.arange(safe_buckets + 1, dtype=np.int64) * total_frames) // safe_buckets
+            b_starts = edges[:-1]
+            b_ends = np.maximum(b_starts + 1, edges[1:])
+        else:
+            b_starts = np.minimum(
+                total_frames - 1,
+                (np.arange(safe_buckets, dtype=np.int64) * total_frames) // safe_buckets,
+            )
+            b_ends = np.minimum(total_frames, b_starts + 1)
+
+        peaks = np.zeros(safe_buckets, dtype=np.float32)
+        chunk_frames = 262144
+        frame_pos = 0
+        b_idx = 0
+
+        while frame_pos < total_frames and b_idx < safe_buckets:
+            block = handle.read(chunk_frames, dtype="float32", always_2d=True)
+            n = len(block)
+            if n == 0:
+                break
+            chunk_end = frame_pos + n
+            frame_abs = np.max(np.abs(np.nan_to_num(block, nan=0.0)), axis=1)
+
+            while b_idx < safe_buckets and int(b_starts[b_idx]) < chunk_end:
+                ls = max(0, int(b_starts[b_idx]) - frame_pos)
+                le = min(n, int(b_ends[b_idx]) - frame_pos)
+                if le > ls:
+                    val = float(np.max(frame_abs[ls:le]))
+                    if val > peaks[b_idx]:
+                        peaks[b_idx] = val
+                if int(b_ends[b_idx]) <= chunk_end:
+                    b_idx += 1
+                else:
+                    break
+
+            frame_pos = chunk_end
+
+    max_val = float(np.max(peaks))
+    if max_val <= 1e-8:
+        return [0.0] * safe_buckets
+    normed = np.clip(peaks / max_val, 0.0, 1.0)
+    return [round(float(x), 3) for x in normed]

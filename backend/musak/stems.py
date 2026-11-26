@@ -14,7 +14,7 @@ import numpy as np
 import soundfile as sf
 
 from musak.audio_analysis import analyze_audio, ensure_stereo, resample_stereo
-from musak.config import STEM_NAMES
+from musak.config import STEM_NAMES, get_stem_device
 from musak.models import ProjectState
 from musak.storage import ProjectNotFoundError, ProjectStore
 from musak.youtube import download_youtube_audio
@@ -74,7 +74,8 @@ def separate_audio_file(input_wav: Path, output_dir: Path) -> list[str]:
 
     # Serialize Demucs model inference + device moves so concurrent main/ref jobs never collide
     with _inference_lock:
-        use_cuda = torch.cuda.is_available()
+        device_pref = get_stem_device()
+        use_cuda = device_pref != "cpu" and torch.cuda.is_available()
         if use_cuda:
             try:
                 sources_cpu = _run_demucs_apply(model, wav_tensor, "cuda")

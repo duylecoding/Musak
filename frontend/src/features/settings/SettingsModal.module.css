@@ -1,0 +1,128 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background-color: var(--bg-scrim);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+.modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border-radius: var(--radius-xl);
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-modal);
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.headerLeft,
+.sectionTitleRow,
+.btnGroup { display: flex; align-items: center; gap: var(--space-2); }
+.headerIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background-color: var(--accent-primary-soft);
+  border: 1px solid var(--accent-primary);
+  color: var(--text-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.title { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.subtitle { margin: 2px 0 0; font-size: 11px; color: var(--text-secondary); }
+.closeBtn { padding: 6px; border-radius: var(--radius-md); color: var(--text-secondary); }
+.closeBtn:hover { color: var(--text-primary); background-color: var(--bg-hover); }
+.body { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
+.section { display: flex; flex-direction: column; gap: var(--space-2); }
+.sectionHeader,
+.actionsRow { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.sectionLabel { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
+.badge { font-size: 11px; font-weight: 500; padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--border-default); }
+.badgeConfigured { background-color: var(--accent-emerald-soft); color: var(--accent-emerald); border-color: var(--accent-emerald); }
+.badgeMissing { background-color: var(--accent-amber-soft); color: var(--accent-amber); border-color: var(--accent-amber); }
+.form { display: flex; flex-direction: column; gap: var(--space-3); }
+.inputWrap { position: relative; }
+.keyInput { width: 100%; padding: 10px 40px 10px 14px; border-radius: var(--radius-lg); background-color: var(--bg-app); font-size: 13px; color: var(--text-primary); }
+.eyeBtn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); padding: 4px; color: var(--text-secondary); }
+.eyeBtn:hover { color: var(--text-primary); }
+.securityBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.securityIcon { color: var(--accent-emerald); flex-shrink: 0; margin-top: 2px; }
+.emphasis { color: var(--text-primary); }
+.feedback { font-size: 12px; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); border: 1px solid transparent; }
+.feedbackSuccess { background-color: var(--accent-emerald-soft); border-color: var(--accent-emerald); color: var(--accent-emerald); }
+.feedbackError { background-color: var(--accent-rose-soft); border-color: var(--accent-rose); color: var(--accent-rose); }
+.linkBtn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-accent); }
+.linkBtn:hover { text-decoration: underline; }
+.dangerBtn,
+.primaryBtn { display: inline-flex; align-items: center; gap: 6px; padding: 6px var(--space-3); border-radius: var(--radius-md); font-size: 12px; font-weight: 500; }
+.dangerBtn { background-color: var(--accent-rose-soft); border: 1px solid var(--accent-rose); color: var(--accent-rose); }
+.primaryBtn { background-color: var(--accent-primary); color: var(--text-primary); }
+.primaryBtn:hover:not(:disabled) { background-color: var(--accent-primary-hover); }
+.dangerBtn:disabled,
+.primaryBtn:disabled { opacity: 0.45; }
+.divider { height: 1px; background-color: var(--border-subtle); }
+.helpPill {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+}
+.deviceGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.deviceCard {
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  text-align: left;
+  color: var(--text-secondary);
+}
+.deviceCard:hover:not(:disabled) { border-color: var(--border-strong); }
+.deviceCardActive { background-color: var(--accent-primary-soft); border-color: var(--accent-primary); color: var(--text-primary); }
+.deviceCard:disabled { opacity: 0.4; }
+.deviceTitle { font-size: 12px; font-weight: 600; }
+.deviceSub,
+.diagSub { font-size: 10px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.refreshBtn { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-secondary); }
+.refreshBtn:hover { color: var(--text-primary); }
+.diagGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.diagCard { padding: var(--space-3); border-radius: var(--radius-lg); background-color: var(--bg-surface); border: 1px solid var(--border-subtle); }
+.diagLabel { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+.diagValue { margin-top: 4px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--text-primary); }
+.textEmerald { color: var(--accent-emerald); }
+.textRose { color: var(--accent-rose); }
+.textAmber { color: var(--accent-amber); }
+.textAccent { color: var(--text-accent); }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

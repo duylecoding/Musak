@@ -1,0 +1,157 @@
+.body {
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.meta {
+  min-width: 0;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.range {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.closeBtn {
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.closeBtn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.desc {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.rowLabel {
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.switchBtn {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background-color: var(--bg-hover);
+  transition: background-color 150ms ease;
+}
+
+.switchOn {
+  background-color: var(--accent-emerald);
+}
+
+.switchThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background-color: var(--text-primary);
+  transition: transform 150ms ease;
+}
+
+.switchThumbOn {
+  transform: translateX(14px);
+}
+
+.gainBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.gainHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.gainValue {
+  font-family: var(--font-mono);
+  color: var(--text-accent);
+}
+
+.gainSlider {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.deleteBtn {
+  width: 100%;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  background-color: var(--accent-rose-soft);
+  border: 1px solid var(--accent-rose);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-rose);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.deleteBtn:disabled {
+  opacity: 0.5;
+}
+
+.iconSm {
+  width: 14px;
+  height: 14px;
+}
+
+.iconSpin {
+  width: 14px;
+  height: 14px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,127 @@
+.clip {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  padding: 0 var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  user-select: none;
+  cursor: grab;
+  z-index: var(--z-lane);
+  overflow: hidden;
+  transition: opacity 150ms ease;
+}
+
+.clip:active {
+  cursor: grabbing;
+}
+
+.clipDisabled {
+  background-color: var(--bg-elevated);
+  border-style: dashed;
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+  opacity: 0.55;
+}
+
+.toneVocals {
+  background-color: color-mix(in srgb, var(--lane-vocals) 22%, transparent);
+  border-color: color-mix(in srgb, var(--lane-vocals) 55%, transparent);
+  color: var(--text-primary);
+}
+
+.toneDrums {
+  background-color: color-mix(in srgb, var(--lane-drums) 22%, transparent);
+  border-color: color-mix(in srgb, var(--lane-drums) 55%, transparent);
+  color: var(--text-primary);
+}
+
+.toneBass {
+  background-color: color-mix(in srgb, var(--lane-bass) 22%, transparent);
+  border-color: color-mix(in srgb, var(--lane-bass) 55%, transparent);
+  color: var(--text-primary);
+}
+
+.toneOther {
+  background-color: color-mix(in srgb, var(--lane-other) 22%, transparent);
+  border-color: color-mix(in srgb, var(--lane-other) 55%, transparent);
+  color: var(--text-primary);
+}
+
+.toneMaster {
+  background-color: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.toneSfx {
+  background: linear-gradient(
+    90deg,
+    var(--accent-primary-soft),
+    var(--accent-sky-soft)
+  );
+  border-color: var(--accent-sky);
+  color: var(--text-primary);
+}
+
+.toneReference {
+  background: linear-gradient(
+    90deg,
+    var(--accent-primary-soft),
+    color-mix(in srgb, var(--lane-vocals) 28%, transparent)
+  );
+  border-color: var(--lane-layer);
+  color: var(--text-primary);
+}
+
+.resizeHandleLeft,
+.resizeHandleRight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  transition: background-color 150ms ease;
+}
+
+.resizeHandleLeft {
+  left: 0;
+}
+
+.resizeHandleRight {
+  right: 0;
+}
+
+.resizeHandleLeft:hover,
+.resizeHandleRight:hover {
+  background-color: var(--border-strong);
+}
+
+.emoji {
+  font-size: 11px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.title {
+  font-size: 10px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.offBadge {
+  font-size: 9px;
+  text-transform: uppercase;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-scrim);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  pointer-events: none;
+}

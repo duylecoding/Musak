@@ -160,10 +160,64 @@ class ProjectStore:
     def previews_dir(self, project_id: str) -> Path:
         return self.project_dir(project_id) / "previews"
 
-    def preview_audio_path(self, project_id: str, proposal_id: str) -> Path:
+    def preview_audio_path(self, project_id: str, proposal_id: str, nonce: str | None = None) -> Path:
         prop_id = validate_id(proposal_id, "proposal_id")
         pdir = self.previews_dir(project_id)
+        if nonce:
+            safe_nonce = validate_id(nonce, "nonce")
+            return _ensure_within(pdir, pdir / f"{prop_id}_{safe_nonce}.wav")
         return _ensure_within(pdir, pdir / f"{prop_id}.wav")
+
+    def resolve_preview_audio_path(
+        self,
+        project_id: str,
+        proposal_id: str,
+        nonce: str | None = None,
+    ) -> Path | None:
+        """Resolve versioned preview WAV for a proposal, falling back to latest or unversioned."""
+        prop_id = validate_id(proposal_id, "proposal_id")
+        if nonce:
+            try:
+                exact = self.preview_audio_path(project_id, prop_id, nonce=nonce)
+                if exact.is_file():
+                    return exact
+            except InvalidIdError:
+                pass
+        pdir = self.previews_dir(project_id)
+        if pdir.is_dir():
+            versioned = sorted(
+                (p for p in pdir.glob(f"{prop_id}_*.wav") if p.is_file()),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            if versioned:
+                return versioned[0]
+        legacy = self.preview_audio_path(project_id, prop_id)
+        if legacy.is_file():
+            return legacy
+        return None
+
+    def prune_old_previews(
+        self,
+        project_id: str,
+        proposal_id: str,
+        keep_name: str | None = None,
+    ) -> None:
+        """Best-effort cleanup of older preview WAVs for a proposal (ignores Windows WinError 32)."""
+        prop_id = validate_id(proposal_id, "proposal_id")
+        pdir = self.previews_dir(project_id)
+        if not pdir.is_dir():
+            return
+        candidates = list(pdir.glob(f"{prop_id}_*.wav")) + [pdir / f"{prop_id}.wav"]
+        for cand in candidates:
+            if not cand.is_file():
+                continue
+            if keep_name and cand.name == keep_name:
+                continue
+            try:
+                cand.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def reference_dir(self, project_id: str, ref_id: str) -> Path:
         rid = validate_id(ref_id, "ref_id")
@@ -230,8 +284,9 @@ class ProjectStore:
         return {stem: f"/api/projects/{project_id}/audio/stem/{stem}{suffix}" for stem in stems}
 
     @staticmethod
-    def preview_audio_url(project_id: str, proposal_id: str) -> str:
-        return f"/api/projects/{project_id}/audio/preview/{proposal_id}"
+    def preview_audio_url(project_id: str, proposal_id: str, nonce: str | None = None) -> str:
+        base = f"/api/projects/{project_id}/audio/preview/{proposal_id}"
+        return f"{base}?t={nonce}" if nonce else base
 
     @staticmethod
     def reference_audio_url(project_id: str, ref_id: str) -> str:

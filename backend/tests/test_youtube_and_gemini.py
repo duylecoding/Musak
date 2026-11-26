@@ -9,7 +9,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from musak import gemini_agent, main as musak_main
+from musak import gemini_agent
+from musak.routers import references as refs_router
 from musak.youtube import canonical_youtube_url, extract_youtube_id
 from tests.conftest import make_synthetic_track, wav_bytes_from_array
 
@@ -44,7 +45,7 @@ def test_youtube_reference_and_mocked_gemini_auto_tag(
 
     # Mock lightweight YouTube metadata lookup (no network)
     monkeypatch.setattr(
-        musak_main,
+        refs_router,
         "fetch_youtube_metadata",
         lambda url: {
             "youtube_id": "dQw4w9WgXcQ",

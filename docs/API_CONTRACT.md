@@ -1,74 +1,48 @@
-# Musak Internal API Contract (v0.1)
+# Musak Internal API Contract (v0.3)
 
 Base URL: `http://127.0.0.1:8765`
-CORS: Allow `http://localhost:5173`, `http://127.0.0.1:5173`, and `file://` (Electron renderer).
+CORS: Allow `http://localhost:5173`, `http://127.0.0.1:5173`, `file://`, and `null` (`allow_credentials=False`, `expose_headers=["Content-Disposition"]`).
 
 ## 1. Health & Settings
 - `GET /api/health`
-  - Returns: `{ status: "ok", cuda_available: boolean, gpu_name: string | null, ffmpeg_available: boolean, api_key_configured: boolean, model: string }`
-- `POST /api/settings/api-key`
-  - Body: `{ api_key: string }` (stored ONLY in backend process memory; never written to disk)
-  - Returns: `{ api_key_configured: boolean }`
-- `DELETE /api/settings/api-key`
-  - Returns: `{ api_key_configured: false }`
+  - Returns: `{ status: "ok", cuda_available: boolean, gpu_name: string | null, ffmpeg_available: boolean, api_key_configured: boolean, model: string, stem_device: "auto" | "cuda" | "cpu" }`
+- `POST /api/settings/api-key` -> Body `{ api_key: string }` -> `{ api_key_configured: boolean }`
+- `DELETE /api/settings/api-key` -> `{ api_key_configured: false }`
+- `POST /api/settings/stem-device` -> Body `{ device: "auto" | "cuda" | "cpu" }` -> `{ stem_device: "auto" | "cuda" | "cpu" }`
 
 ## 2. Projects (Workspaces)
 - `GET /api/projects` -> `{ projects: ProjectSummary[] }`
-  - `ProjectSummary`: `{ id, name, updated_at, has_main_track, reference_count, edit_count }`
-- `POST /api/projects` -> Body `{ name: string }` -> returns `ProjectState`
-- `GET /api/projects/{project_id}` -> returns `ProjectState`
-- `PATCH /api/projects/{project_id}` -> Body `{ name: string }` -> renames project, returns `ProjectState`
-- `DELETE /api/projects/{project_id}` -> returns `{ deleted: true }`
+- `POST /api/projects` -> Body `{ name: string }` (max 120 chars) -> `ProjectState`
+- `GET /api/projects/{project_id}` -> `ProjectState`
+- `PATCH /api/projects/{project_id}` -> Body `{ name: string }` (max 120 chars) -> `ProjectState`
+- `DELETE /api/projects/{project_id}` -> `{ deleted: true }`
 
-### `ProjectState`
+### Core Types
 ```ts
-interface Section {
-  label: string;
+type StemLane = "all" | "vocals" | "drums" | "bass" | "other";
+
+interface TimeSelection {
   start: number;
   end: number;
-  energy: number;
+  lane?: StemLane;
 }
 
-interface MainTrack {
+interface WaveformPeaksResponse {
+  duration: number;
+  buckets: number;
+  main: number[];
+  rendered: number[] | null;
+  stems: Record<string, number[]>; // keys: vocals, drums, bass, other
+}
+
+interface SfxItem {
   id: string;
   name: string;
-  duration: number;
-  sample_rate: number;
-  bpm: number;
-  key: string;
-  beats: number[];
-  sections: Section[];
-  stems_status: "none" | "processing" | "ready" | "error";
-  stems_error: string | null;
-  stems: string[];
-  audio_url: string;
-  rendered_url: string;
-  stem_urls: Record<string, string>;
-}
-
-interface MomentPin {
-  id: string;
-  label: string;
-  start: number;
-  end: number;
-  note: string;
-  source: "user" | "gemini";
-}
-
-interface ReferenceTrack {
-  id: string;
-  title: string;
-  source_type: "local" | "youtube";
-  youtube_url: string | null;
-  youtube_id: string | null;
-  duration: number | null;
-  bpm: number | null;
-  key: string | null;
-  audio_downloaded: boolean;
-  stems_status: "none" | "processing" | "ready" | "error";
-  stems_error: string | null;
-  audio_url: string | null;
-  moments: MomentPin[];
+  category: "riser" | "impact" | "transition" | "drums";
+  description: string;
+  default_duration: number;
+  bpm_synced: boolean;
+  preview_url: string;
 }
 
 interface EditOperation {
@@ -79,32 +53,27 @@ interface EditOperation {
     | "delay_throw"
     | "lofi_eq"
     | "bass_boost"
-    | "borrow_stem";
+    | "borrow_stem"
+    | "tempo_pitch"
+    | "add_sfx";
   stems?: string[];
   start?: number;
   end?: number;
   snap_to_beat?: boolean;
-  // stem_gain
   gain_db?: number;
   fade_ms?: number;
-  // filter_sweep
   mode?: "highpass" | "lowpass";
   start_hz?: number;
   end_hz?: number;
-  // reverb_throw
   room_size?: number;
   wet_level?: number;
-  // delay_throw
   delay_beats?: number;
   feedback?: number;
   mix?: number;
-  // lofi_eq
   low_cut_hz?: number;
   high_cut_hz?: number;
   drive_db?: number;
-  // bass_boost
   cutoff_hz?: number;
-  // borrow_stem
   ref_id?: string;
   ref_stem?: "vocals" | "drums" | "bass" | "other" | "full";
   ref_start?: number;
@@ -114,90 +83,57 @@ interface EditOperation {
   replace_main_stems?: string[];
   match_bpm?: boolean;
   match_key?: boolean;
-}
-
-interface EditBlock {
-  id: string;
-  title: string;
-  description: string;
-  start: number;
-  end: number;
-  enabled: boolean;
-  operations: EditOperation[];
-  created_at: string;
-}
-
-interface EditProposal {
-  id: string;
-  title: string;
-  summary: string;
-  style: "imitate" | "mashup" | "creative";
-  start: number;
-  end: number;
-  operations: EditOperation[];
-  preview_url: string | null;
-  preview_start: number;
-  preview_end: number;
-  applied: boolean;
-}
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  selection: { start: number; end: number } | null;
-  reference_ids: string[];
-  proposals: EditProposal[];
-  created_at: string;
-}
-
-interface ProjectState {
-  id: string;
-  name: string;
-  created_at: string;
-  updated_at: string;
-  render_version: number;
-  main_track: MainTrack | null;
-  references: ReferenceTrack[];
-  edits: EditBlock[];
-  redo_stack: EditBlock[];
-  chat_messages: ChatMessage[];
+  speed_rate?: number;
+  semitones?: number;
+  add_reverb?: boolean;
+  reverb_wet?: number;
+  // add_sfx
+  sfx_id?: string;
+  layer_id?: string;
 }
 ```
 
-## 3. Main Track & Audio Streaming
-- `POST /api/projects/{project_id}/main-track` (multipart `file`) -> `ProjectState`
-- `POST /api/projects/{project_id}/main-track/youtube` -> Body `{ url: string, title?: string }` -> downloads public YouTube audio via `yt-dlp`, analyzes BPM/key/sections, replaces main track -> `ProjectState`
-- `POST /api/projects/{project_id}/main-track/from-reference/{ref_id}` -> promotes a Reference Shelf item to main track (downloads via `yt-dlp` on demand if YouTube and not yet downloaded; reuses stems if already ready) -> `ProjectState`
-- `POST /api/projects/{project_id}/main-track/separate` -> starts background Demucs -> `ProjectState`
-- `GET /api/projects/{project_id}/audio/main` -> audio file stream
-- `GET /api/projects/{project_id}/audio/rendered` -> rendered remix audio stream (falls back to main)
-- `GET /api/projects/{project_id}/audio/stem/{stem_name}` -> stem audio stream (`vocals|drums|bass|other`)
-- `GET /api/projects/{project_id}/audio/preview/{proposal_id}` -> proposal preview audio stream
-- `POST /api/projects/{project_id}/export` -> Body `{ format: "wav" | "mp3" }` -> downloadable audio attachment
+## 3. Main Track, Peaks & Audio Streaming
+- `POST /api/projects/{project_id}/main-track` (multipart `file`) -> auto-starts background Demucs -> `ProjectState`
+- `POST /api/projects/{project_id}/main-track/youtube` -> Body `{ url: string, title?: string }` -> auto-starts background Demucs -> `ProjectState`
+- `POST /api/projects/{project_id}/main-track/from-reference/{ref_id}` -> promotes ref (reuses stems if ready, else auto-starts Demucs) -> `ProjectState`
+- `POST /api/projects/{project_id}/main-track/separate` -> manually triggers/retries background Demucs -> `ProjectState`
+- `POST /api/projects/{project_id}/main-track/extract-hooks` -> Gemini extracts clickable lyric/hook cues -> `ProjectState`
+- `GET /api/projects/{project_id}/peaks?buckets=400` -> `WaveformPeaksResponse` (fast normalized waveform peaks for multi-lane canvas rendering)
+- `GET /api/projects/{project_id}/audio/main` -> audio stream (`Cache-Control: no-store`)
+- `GET /api/projects/{project_id}/audio/rendered` -> rendered remix stream (`Cache-Control: no-store`)
+- `GET /api/projects/{project_id}/audio/stem/{stem_name}` -> stem audio stream
+- `GET /api/projects/{project_id}/audio/preview/{proposal_id}?t=...` -> fast sliced proposal preview stream
+- `POST /api/projects/{project_id}/export` -> Body `{ format?: "wav"|"mp3"|"zip", target?: "remix"|"instrumental"|"vocals"|"stems_zip", master_preset?: "off"|"balanced"|"club"|"warm" }`
 
-## 4. Reference Shelf
-- `POST /api/projects/{project_id}/references/upload` (multipart `file`, optional form field `title`) -> `ProjectState`
-- `POST /api/projects/{project_id}/references/youtube` -> Body `{ url: string, title?: string }` -> `ProjectState`
+## 4. Built-In Transition SFX Library
+- `GET /api/sfx` -> `{ items: SfxItem[] }`
+- `GET /api/sfx/{sfx_id}/preview?bpm=120&duration=4.0` -> stereo 44.1 kHz WAV preview stream
+
+## 5. Reference Shelf & Auto-Mashup
+- `POST /api/projects/{project_id}/references/upload` (multipart `file`, optional `title`) -> `ProjectState`
+- `POST /api/projects/{project_id}/references/youtube` -> Body `{ url: string, title?: string }` (fast YouTube oEmbed lookup first!) -> `ProjectState`
 - `DELETE /api/projects/{project_id}/references/{ref_id}` -> `ProjectState`
-- `POST /api/projects/{project_id}/references/{ref_id}/moments` -> Body `{ label: string, start: number, end: number, note?: string }` -> `ProjectState`
+- `POST /api/projects/{project_id}/references/{ref_id}/moments` -> `ProjectState`
 - `DELETE /api/projects/{project_id}/references/{ref_id}/moments/{moment_id}` -> `ProjectState`
-- `POST /api/projects/{project_id}/references/{ref_id}/auto-tag` -> Gemini auto-tags standout moments -> `ProjectState`
-- `POST /api/projects/{project_id}/references/{ref_id}/extract-stems` -> On-demand `yt-dlp` (if YouTube) + Demucs in background -> `ProjectState`
-- `GET /api/projects/{project_id}/references/{ref_id}/audio` -> audio stream if downloaded/local
+- `POST /api/projects/{project_id}/references/{ref_id}/auto-tag` -> `ProjectState`
+- `POST /api/projects/{project_id}/references/{ref_id}/extract-stems` -> `ProjectState`
+- `GET /api/projects/{project_id}/references/{ref_id}/audio` -> audio stream
+- `POST /api/projects/{project_id}/mashup` -> Body `{ ref_id, mode, start?, end? }` -> `ProjectState`
 
-## 5. Edits & History
+## 6. Edits, Drag/Resize Updates, Proposal Tuning & History
 - `POST /api/projects/{project_id}/edits` -> Body `{ title, description, start, end, operations }` -> `ProjectState`
 - `POST /api/projects/{project_id}/edits/apply-proposal/{proposal_id}` -> `ProjectState`
-- `PATCH /api/projects/{project_id}/edits/{edit_id}` -> Body `{ enabled?: boolean }` -> `ProjectState`
+- `POST /api/projects/{project_id}/proposals/{proposal_id}/tune` -> Body `{ intensity?, keep_vocals_clear?, shift_beats? }` -> `ProjectState`
+- `PATCH /api/projects/{project_id}/edits/{edit_id}`
+  - Body: `{ enabled?: boolean, start?: number, end?: number, title?: string, gain_db?: number }`
+  - Allows toggling on/off OR dragging/resizing/re-leveling any block directly on the timeline lanes; updates operation timestamps/gain, re-renders remix, returns `ProjectState`.
 - `DELETE /api/projects/{project_id}/edits/{edit_id}` -> `ProjectState`
 - `POST /api/projects/{project_id}/undo` -> `ProjectState`
 - `POST /api/projects/{project_id}/redo` -> `ProjectState`
 
-## 6. Gemini Producer Chat & Voice Input
+## 7. Gemini Producer Chat & Voice Input
 - `POST /api/projects/{project_id}/chat`
-  - Body: `{ message: string, selection?: { start: number, end: number } | null, reference_ids?: string[] }`
-  - Returns: `ProjectState` (with new user & assistant messages + pre-rendered preview WAVs for proposals)
-- `POST /api/voice/transcribe` (multipart `file` — `audio/webm`, `audio/ogg`, `audio/wav`, `audio/mp4`)
-  - Uses Gemini (`gemini-2.5-flash`) to transcribe spoken user instructions accurately (preserving timestamps like `0:45`, `1:12`, song/track names, and remix terms).
-  - Returns: `{ text: string }`
+  - Body: `{ message: string, selection?: TimeSelection | null, reference_ids?: string[] }` (supports `selection.lane`!)
+  - Returns: `ProjectState` (with fast <0.3s sliced proposal preview WAVs)
+- `POST /api/voice/transcribe` (multipart `file`) -> `{ text: string }`

@@ -1,0 +1,163 @@
+.momentsSection {
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-2) var(--space-3);
+  background-color: color-mix(in srgb, var(--bg-app) 45%, var(--bg-surface));
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.momentsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.momentsLabel {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pinToggleBtn {
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.pinToggleBtn:hover { color: var(--text-primary); }
+
+.pinForm {
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pinInputGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pinInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.pinInput::placeholder { color: var(--text-muted); }
+.pinInput:focus { border-color: var(--accent-primary); }
+.pinFormActions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.pinCancelBtn { border: none; background: transparent; padding: 4px 8px; font-size: 10px; color: var(--text-secondary); cursor: pointer; }
+
+.pinSaveBtn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  background-color: var(--accent-primary);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.pinSaveBtn:disabled { opacity: 0.5; }
+.momentsEmpty { margin: 0; font-size: 11px; color: var(--text-muted); padding: 2px 0; }
+.momentsList { display: flex; flex-direction: column; gap: 4px; }
+
+.momentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+}
+
+.momentPlayBtn {
+  min-width: 0;
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.momentTime { font-size: 10px; font-family: var(--font-mono); color: var(--text-accent); flex-shrink: 0; }
+.momentName { font-size: 11px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.momentSourceAi,
+.momentSourceUser {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.momentSourceAi { background-color: var(--accent-primary-soft); color: var(--text-accent); }
+.momentSourceUser { background-color: var(--bg-elevated); color: var(--text-secondary); }
+.momentActions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+
+.momentChatBtn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background-color: var(--accent-primary-soft);
+  color: var(--text-accent);
+  cursor: pointer;
+}
+
+.momentChatBtn:hover { background-color: var(--accent-primary); color: var(--text-primary); }
+
+.momentDeleteBtn {
+  border: none;
+  background: transparent;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.momentDeleteBtn:hover { color: var(--accent-rose); background-color: var(--accent-rose-soft); }
+.errorText { margin: 0; font-size: 10px; color: var(--accent-rose); line-height: 1.35; }
+.spinner { animation: momentPinSpin 0.9s linear infinite; }
+@keyframes momentPinSpin { to { transform: rotate(360deg); } }

@@ -1,0 +1,353 @@
+.wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  overflow-y: auto;
+}
+
+.stack {
+  width: 100%;
+  max-width: 672px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.heroCard {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.heroTop {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.heroIconWrap {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(
+    135deg,
+    var(--accent-rose-soft),
+    var(--accent-primary-soft)
+  );
+  border: 1px solid var(--border-tooltip);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.heroIconYoutube {
+  width: 24px;
+  height: 24px;
+  color: var(--accent-rose);
+}
+
+.heroIconSpin {
+  width: 24px;
+  height: 24px;
+  color: var(--text-accent);
+  animation: spin 1s linear infinite;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.heroSubtitle {
+  margin: var(--space-1) 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.ytForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.inputWrap {
+  position: relative;
+  flex: 1 1 260px;
+}
+
+.inputIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.ytInput {
+  width: 100%;
+  padding: 10px 14px 10px 40px;
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-default);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.ytInput:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.ytInput:disabled {
+  opacity: 0.5;
+}
+
+.submitBtn {
+  padding: 10px 20px;
+  border-radius: var(--radius-lg);
+  background-color: var(--accent-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  transition: background-color 150ms ease, opacity 150ms ease;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background-color: var(--accent-primary-hover);
+}
+
+.submitBtn:disabled {
+  opacity: 0.4;
+}
+
+.btnIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.btnIconSpin {
+  width: 16px;
+  height: 16px;
+  animation: spin 1s linear infinite;
+}
+
+.refSection {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.refLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.refList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.refPill {
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  font-size: 12px;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.refPill:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  border-color: var(--border-tooltip);
+}
+
+.refPill:disabled {
+  opacity: 0.5;
+}
+
+.refIconYt {
+  width: 14px;
+  height: 14px;
+  color: var(--accent-rose);
+  flex-shrink: 0;
+}
+
+.refIconFile {
+  width: 14px;
+  height: 14px;
+  color: var(--accent-sky);
+  flex-shrink: 0;
+}
+
+.refIconSpin {
+  width: 14px;
+  height: 14px;
+  color: var(--text-accent);
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+.refTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.errorBanner {
+  font-size: 12px;
+  color: var(--accent-rose);
+  background-color: var(--accent-rose-soft);
+  border: 1px solid var(--accent-rose);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.errorContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.errorClose {
+  color: var(--accent-rose);
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.errorClose:hover {
+  opacity: 1;
+}
+
+.dropzone {
+  border-radius: var(--radius-xl);
+  border: 2px dashed var(--border-default);
+  background-color: var(--bg-panel);
+  padding: var(--space-5) var(--space-6);
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  transition: border-color 150ms ease, background-color 150ms ease, transform 150ms ease;
+}
+
+.dropzone:hover {
+  border-color: var(--border-tooltip);
+  background-color: var(--bg-surface);
+}
+
+.dropzoneActive {
+  border-color: var(--accent-primary);
+  background-color: var(--accent-primary-soft);
+  transform: scale(1.01);
+}
+
+.dropLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dropIconBox {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dropIcon {
+  width: 20px;
+  height: 20px;
+  color: var(--text-secondary);
+}
+
+.dropIconSpin {
+  width: 20px;
+  height: 20px;
+  color: var(--text-accent);
+  animation: spin 1s linear infinite;
+}
+
+.dropTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dropDesc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.browseChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) 14px;
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.browseIcon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-accent);
+}
+
+.smallIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

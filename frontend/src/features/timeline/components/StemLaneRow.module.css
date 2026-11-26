@@ -1,0 +1,189 @@
+.row {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--bg-app);
+  transition: background-color 150ms ease;
+}
+
+.row:hover {
+  background-color: var(--bg-panel);
+}
+
+.stickyHeader {
+  width: 156px;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: var(--z-sticky-header);
+  background-color: var(--bg-panel);
+  border-right: 1px solid var(--border-default);
+  padding: var(--space-2) 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.headerTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  cursor: help;
+}
+
+.labelGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.iconBadge {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.badgeVocals {
+  background-color: color-mix(in srgb, var(--lane-vocals) 16%, transparent);
+  border-color: color-mix(in srgb, var(--lane-vocals) 40%, transparent);
+  color: var(--lane-vocals);
+}
+
+.badgeDrums {
+  background-color: color-mix(in srgb, var(--lane-drums) 16%, transparent);
+  border-color: color-mix(in srgb, var(--lane-drums) 40%, transparent);
+  color: var(--lane-drums);
+}
+
+.badgeBass {
+  background-color: color-mix(in srgb, var(--lane-bass) 16%, transparent);
+  border-color: color-mix(in srgb, var(--lane-bass) 40%, transparent);
+  color: var(--lane-bass);
+}
+
+.badgeOther {
+  background-color: color-mix(in srgb, var(--lane-other) 16%, transparent);
+  border-color: color-mix(in srgb, var(--lane-other) 40%, transparent);
+  color: var(--lane-other);
+}
+
+.laneIcon {
+  width: 12px;
+  height: 12px;
+}
+
+.laneName {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.volumeText {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.controlsRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.msBtn {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.msBtn:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.msBtn:disabled {
+  opacity: 0.35;
+}
+
+.muteActive {
+  background-color: var(--accent-rose-soft);
+  border-color: var(--accent-rose);
+  color: var(--accent-rose);
+}
+
+.soloActive {
+  background-color: var(--accent-amber-soft);
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+.volumeSlider {
+  flex: 1;
+  min-width: 0;
+  height: 4px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.volumeSlider:disabled {
+  opacity: 0.35;
+}
+
+.laneTrack {
+  flex: 1;
+  height: 80px;
+  position: relative;
+  user-select: none;
+  cursor: crosshair;
+  overflow: hidden;
+}
+
+.selectionHighlight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--border-strong);
+  border-right: 1px solid var(--border-strong);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.selVocals {
+  background-color: color-mix(in srgb, var(--lane-vocals) 20%, transparent);
+  border-color: var(--lane-vocals);
+}
+
+.selDrums {
+  background-color: color-mix(in srgb, var(--lane-drums) 20%, transparent);
+  border-color: var(--lane-drums);
+}
+
+.selBass {
+  background-color: color-mix(in srgb, var(--lane-bass) 20%, transparent);
+  border-color: var(--lane-bass);
+}
+
+.selOther {
+  background-color: color-mix(in srgb, var(--lane-other) 20%, transparent);
+  border-color: var(--lane-other);
+}
