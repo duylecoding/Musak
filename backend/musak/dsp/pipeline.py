@@ -9,7 +9,9 @@ import soundfile as sf
 
 from musak.audio_analysis import ensure_stereo, resample_stereo
 from musak.config import STEM_NAMES, TARGET_SAMPLE_RATE
+from musak.dsp.arrangement import ARRANGEMENT_OP_TYPES, apply_arrangement_ops
 from musak.dsp.borrow import _apply_borrow_stem
+from musak.dsp.dj_moves import _apply_beat_repeat_range, _apply_vinyl_brake_range
 from musak.dsp.effects import (
     _apply_bass_boost,
     _apply_delay_throw,
@@ -40,6 +42,8 @@ def _apply_single_effect(
 ) -> np.ndarray:
     if op.type == "delay_throw":
         return _apply_delay_throw(audio, sr, s_idx, e_idx, op, bpm)
+    if op.type == "beat_repeat":
+        return _apply_beat_repeat_range(audio, sr, s_idx, e_idx, op, bpm)
     dispatch = {
         "stem_gain": _apply_stem_gain,
         "filter_sweep": _apply_filter_sweep,
@@ -47,6 +51,7 @@ def _apply_single_effect(
         "lofi_eq": _apply_lofi_eq,
         "bass_boost": _apply_bass_boost,
         "tempo_pitch": _apply_tempo_pitch_slice,
+        "vinyl_brake": _apply_vinyl_brake_range,
     }
     handler = dispatch.get(op.type)
     return handler(audio, sr, s_idx, e_idx, op) if handler is not None else audio
@@ -69,6 +74,9 @@ def _execute_dsp_pipeline(
     full_track_tempo_ops: list[EditOperation] = []
 
     for op in operations:
+        if op.type in ARRANGEMENT_OP_TYPES:
+            continue
+
         if op.type == "borrow_stem":
             stem_buffers, full_mix, overlay = _apply_borrow_stem(store, project, stem_buffers, full_mix, sr, op)
             if overlay is not None:
@@ -114,6 +122,8 @@ def _execute_dsp_pipeline(
 
     for overlay in overlays:
         mixed += overlay
+
+    mixed = apply_arrangement_ops(mixed, sr, operations, beats, duration)
 
     for op in full_track_tempo_ops:
         speed_rate = float(np.clip(op.speed_rate if op.speed_rate is not None else 1.0, 0.5, 1.6))

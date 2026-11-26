@@ -91,6 +91,12 @@ export function computeResizedRange(
 }
 
 export function getEditGainDb(edit: EditBlock): number {
+  const preferred = edit.operations.find(
+    (op) => (op.type === 'borrow_stem' || op.type === 'add_sfx') && typeof op.gain_db === 'number' && Number.isFinite(op.gain_db)
+  );
+  if (preferred && typeof preferred.gain_db === 'number') {
+    return preferred.gain_db;
+  }
   for (const op of edit.operations) {
     if (typeof op.gain_db === 'number' && Number.isFinite(op.gain_db)) {
       return op.gain_db;
@@ -106,6 +112,9 @@ export function editSupportsGain(edit: EditBlock): boolean {
 export function classifyEditLane(edit: EditBlock): EditLane {
   if (edit.operations.some((op) => op.type === 'add_sfx' || op.type === 'borrow_stem')) {
     return 'layer';
+  }
+  if (edit.operations.some((op) => op.type === 'cut_section' || op.type === 'repeat_section')) {
+    return 'master';
   }
 
   const targeted = new Set<InstrumentStem>();

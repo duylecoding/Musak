@@ -1,10 +1,14 @@
 import { useCallback, useRef, useState } from 'react';
 import type React from 'react';
 import {
+  addCueMarker,
+  deleteCueMarker,
   extractMainTrackHooks,
   separateMainStems,
   setMainTrackFromReference,
   setMainTrackFromYoutube,
+  updateCueMarker,
+  updateMainTrackMeta as apiUpdateMainTrackMeta,
   uploadMainTrack as apiUploadMainTrack,
 } from '../shared/api';
 import type { ProjectState, ProjectSummary, TimeSelection } from '../shared/api';
@@ -113,6 +117,68 @@ export function useTrackActions({
     }
   }, [activeProjectIdRef, setCurrentProject, showToast]);
 
+  const updateMainTrackMeta = useCallback(
+    async (payload: { bpm?: number; key?: string }) => {
+      const targetProjectId = activeProjectIdRef.current;
+      if (!targetProjectId) return;
+      try {
+        const updated = await apiUpdateMainTrackMeta(targetProjectId, payload);
+        if (activeProjectIdRef.current !== targetProjectId) return;
+        setCurrentProject(updated);
+        showToast('success', 'Updated track tempo & key.');
+      } catch (err) {
+        showToast('error', err instanceof Error ? err.message : 'Failed to update track metadata.');
+      }
+    },
+    [activeProjectIdRef, setCurrentProject, showToast]
+  );
+
+  const addCue = useCallback(
+    async (payload: { label: string; time: number; color?: string }) => {
+      const targetProjectId = activeProjectIdRef.current;
+      if (!targetProjectId) return;
+      try {
+        const updated = await addCueMarker(targetProjectId, payload);
+        if (activeProjectIdRef.current !== targetProjectId) return;
+        setCurrentProject(updated);
+        showToast('success', `Dropped cue "${payload.label}".`);
+      } catch (err) {
+        showToast('error', err instanceof Error ? err.message : 'Failed to add cue marker.');
+      }
+    },
+    [activeProjectIdRef, setCurrentProject, showToast]
+  );
+
+  const updateCue = useCallback(
+    async (cueId: string, payload: { label?: string; time?: number; color?: string }) => {
+      const targetProjectId = activeProjectIdRef.current;
+      if (!targetProjectId) return;
+      try {
+        const updated = await updateCueMarker(targetProjectId, cueId, payload);
+        if (activeProjectIdRef.current !== targetProjectId) return;
+        setCurrentProject(updated);
+      } catch (err) {
+        showToast('error', err instanceof Error ? err.message : 'Failed to update cue marker.');
+      }
+    },
+    [activeProjectIdRef, setCurrentProject, showToast]
+  );
+
+  const deleteCue = useCallback(
+    async (cueId: string) => {
+      const targetProjectId = activeProjectIdRef.current;
+      if (!targetProjectId) return;
+      try {
+        const updated = await deleteCueMarker(targetProjectId, cueId);
+        if (activeProjectIdRef.current !== targetProjectId) return;
+        setCurrentProject(updated);
+      } catch (err) {
+        showToast('error', err instanceof Error ? err.message : 'Failed to delete cue marker.');
+      }
+    },
+    [activeProjectIdRef, setCurrentProject, showToast]
+  );
+
   return {
     mainTrackBusy,
     uploadMainTrack,
@@ -120,5 +186,9 @@ export function useTrackActions({
     loadMainFromReference,
     separateMainStems: separateStems,
     extractHooks,
+    updateMainTrackMeta,
+    addCue,
+    updateCue,
+    deleteCue,
   };
 }

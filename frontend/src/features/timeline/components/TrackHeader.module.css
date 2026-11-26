@@ -37,6 +37,13 @@
   max-width: 240px;
 }
 
+.metaGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .metaPill {
   padding: 2px 6px;
   border-radius: var(--radius-sm);
@@ -45,8 +52,20 @@
   font-size: 10px;
   font-family: var(--font-mono);
   color: var(--text-primary);
-  cursor: help;
+  cursor: pointer;
   flex-shrink: 0;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.metaPill:hover {
+  background-color: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+}
+
+.metaPillActive {
+  background-color: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+  color: var(--text-accent);
 }
 
 .triggerWrap {

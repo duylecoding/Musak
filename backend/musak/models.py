@@ -1,10 +1,10 @@
-"""Pydantic v2 models matching docs/API_CONTRACT.md."""
+"""Pydantic v2 domain models matching docs/API_CONTRACT.md."""
 
 from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field
 
 
 class Section(BaseModel):
@@ -22,6 +22,13 @@ class LyricHook(BaseModel):
     kind: Literal["hook", "lyric", "drop"] = "lyric"
 
 
+class CueMarker(BaseModel):
+    id: str
+    label: str
+    time: float
+    color: str = "violet"
+
+
 class MainTrack(BaseModel):
     id: str
     name: str
@@ -32,6 +39,7 @@ class MainTrack(BaseModel):
     beats: list[float] = Field(default_factory=list)
     sections: list[Section] = Field(default_factory=list)
     lyric_hooks: list[LyricHook] = Field(default_factory=list)
+    cues: list[CueMarker] = Field(default_factory=list)
     stems_status: Literal["none", "processing", "ready", "error"] = "none"
     stems_error: str | None = None
     stems: list[str] = Field(default_factory=list)
@@ -84,6 +92,10 @@ EditOperationType = Literal[
     "borrow_stem",
     "tempo_pitch",
     "add_sfx",
+    "cut_section",
+    "repeat_section",
+    "beat_repeat",
+    "vinyl_brake",
 ]
 
 
@@ -93,9 +105,12 @@ class EditOperation(BaseModel):
     start: float | None = None
     end: float | None = None
     snap_to_beat: bool | None = True
-    # stem_gain & bass_boost
+    # stem_gain, bass_boost, & fades
     gain_db: float | None = None
     fade_ms: float | None = None
+    fade_in_ms: float | None = None
+    fade_out_ms: float | None = None
+    fade_curve: Literal["in", "out", "both"] | None = None
     # filter_sweep
     mode: Literal["highpass", "lowpass"] | None = None
     start_hz: float | None = None
@@ -123,6 +138,7 @@ class EditOperation(BaseModel):
     replace_main_stems: list[str] | None = None
     match_bpm: bool | None = None
     match_key: bool | None = None
+    loop_to_fit: bool | None = None
     # tempo_pitch
     speed_rate: float | None = None
     semitones: float | None = None
@@ -131,6 +147,9 @@ class EditOperation(BaseModel):
     # add_sfx
     sfx_id: str | None = None
     layer_id: str | None = None
+    # repeat_section / beat_repeat
+    repeat_count: int | None = None
+    division_beats: float | None = None
 
 
 class EditBlock(BaseModel):
@@ -204,218 +223,13 @@ class ProjectSummary(BaseModel):
     edit_count: int
 
 
-# --- API Request / Response Schemas ---
-
-
-class HealthResponse(BaseModel):
-    status: Literal["ok"] = "ok"
-    cuda_available: bool
-    gpu_name: str | None = None
-    ffmpeg_available: bool
-    api_key_configured: bool
-    model: str
-    stem_device: Literal["auto", "cuda", "cpu"] = "auto"
-
-
-class StemDeviceRequest(BaseModel):
-    device: Literal["auto", "cuda", "cpu"]
-
-
-class StemDeviceResponse(BaseModel):
-    stem_device: Literal["auto", "cuda", "cpu"]
-
-
-class WaveformPeaksResponse(BaseModel):
-    duration: float
-    buckets: int
-    main: list[float]
-    rendered: list[float] | None = None
-    stems: dict[str, list[float]] = Field(default_factory=dict)
-
-
-class SfxItem(BaseModel):
-    id: str
-    name: str
-    category: Literal["riser", "impact", "transition", "drums"]
-    description: str
-    default_duration: float
-    bpm_synced: bool
-    preview_url: str
-
-
-class SfxListResponse(BaseModel):
-    items: list[SfxItem]
-
-
-class ApiKeyRequest(BaseModel):
-    api_key: str
-
-
-class ApiKeyStatusResponse(BaseModel):
-    api_key_configured: bool
-
-
-class ProjectListResponse(BaseModel):
-    projects: list[ProjectSummary]
-
-
-class CreateProjectRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
-
-    @field_validator("name")
-    @classmethod
-    def _non_blank_name(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("Project name cannot be empty or whitespace.")
-        return cleaned
-
-
-class RenameProjectRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
-
-    @field_validator("name")
-    @classmethod
-    def _non_blank_name(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("Project name cannot be empty or whitespace.")
-        return cleaned
-
-
-class DeleteProjectResponse(BaseModel):
-    deleted: bool = True
-
-
-class ExportRequest(BaseModel):
-    format: Literal["wav", "mp3", "zip"] = "wav"
-    target: Literal["remix", "instrumental", "vocals", "stems_zip"] = "remix"
-    master_preset: Literal["off", "balanced", "club", "warm"] = "off"
-
-
-MashupMode = Literal[
-    "ref_vocals_on_main",
-    "main_vocals_on_ref",
-    "ref_drums_on_main",
-    "smart_auto",
-]
-
-
-class MashupRequest(BaseModel):
-    ref_id: str = Field(min_length=1, max_length=128)
-    mode: MashupMode = "smart_auto"
-    start: float | None = Field(default=None, ge=0.0)
-    end: float | None = Field(default=None, ge=0.0)
-
-    @model_validator(mode="after")
-    def _valid_optional_range(self) -> MashupRequest:
-        if self.start is not None and self.end is not None and self.end <= self.start:
-            raise ValueError("Mashup end time must be greater than start time.")
-        return self
-
-
-class TuneProposalRequest(BaseModel):
-    intensity: float | None = Field(default=None, ge=0.25, le=1.75)
-    keep_vocals_clear: bool | None = None
-    shift_beats: float | None = Field(default=None, ge=-16.0, le=16.0)
-
-
-class YouTubeReferenceRequest(BaseModel):
-    url: str = Field(min_length=1)
-    title: str | None = None
-
-    @field_validator("url")
-    @classmethod
-    def _non_blank_url(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("YouTube URL cannot be blank.")
-        return cleaned
-
-
-class CreateMomentRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=120)
-    start: float = Field(ge=0.0)
-    end: float = Field(ge=0.0)
-    note: str = ""
-
-    @field_validator("label")
-    @classmethod
-    def _non_blank_label(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("Moment label cannot be empty or whitespace.")
-        return cleaned
-
-    @model_validator(mode="after")
-    def _valid_range(self) -> CreateMomentRequest:
-        if self.end <= self.start:
-            raise ValueError("Moment end time must be greater than start time.")
-        return self
-
-
-class CreateEditRequest(BaseModel):
-    title: str = Field(min_length=1, max_length=200)
-    description: str = ""
-    start: float = Field(ge=0.0)
-    end: float = Field(ge=0.0)
-    operations: list[EditOperation] = Field(min_length=1)
-
-    @field_validator("title")
-    @classmethod
-    def _non_blank_title(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("Edit title cannot be empty or whitespace.")
-        return cleaned
-
-    @model_validator(mode="after")
-    def _valid_range(self) -> CreateEditRequest:
-        if self.end <= self.start:
-            raise ValueError("Edit end time must be greater than start time.")
-        return self
-
-
-class UpdateEditRequest(BaseModel):
-    enabled: bool | None = None
-    start: float | None = Field(default=None, ge=0.0)
-    end: float | None = Field(default=None, ge=0.0)
-    title: str | None = Field(default=None, max_length=200)
-    gain_db: float | None = Field(default=None, ge=-80.0, le=18.0)
-
-    @field_validator("title")
-    @classmethod
-    def _non_blank_title(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("Edit title cannot be empty or whitespace.")
-        return cleaned
-
-    @model_validator(mode="after")
-    def _valid_optional_range(self) -> UpdateEditRequest:
-        if self.start is not None and self.end is not None and self.end <= self.start:
-            raise ValueError("Edit end time must be greater than start time.")
-        return self
-
-
-PatchEditRequest = UpdateEditRequest
-
-
-class ChatRequest(BaseModel):
-    message: str = Field(min_length=1, max_length=4000)
-    selection: TimeSelection | None = None
-    reference_ids: list[str] = Field(default_factory=list)
-
-    @field_validator("message")
-    @classmethod
-    def _non_blank_message(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("Chat message cannot be empty or whitespace.")
-        return cleaned
-
-
-class VoiceTranscribeResponse(BaseModel):
-    text: str
+# Re-export API schemas so `from musak.models import ...` remains backward-compatible.
+from musak.schemas import (  # noqa: E402, F401
+    AddCueRequest, ApiKeyRequest, ApiKeyStatusResponse, ChatRequest, CreateEditRequest,
+    CreateMomentRequest, CreateProjectRequest, DeleteProjectResponse, DuplicateEditRequest,
+    ExportRequest, HealthResponse, MashupMode, MashupRequest, PatchEditRequest,
+    ProjectListResponse, RenameProjectRequest, SfxItem, SfxListResponse,
+    StemDeviceRequest, StemDeviceResponse, TuneProposalRequest, UpdateCueRequest,
+    UpdateEditRequest, UpdateMainTrackMetaRequest, VoiceTranscribeResponse,
+    WaveformPeaksResponse, YouTubeReferenceRequest,
+)

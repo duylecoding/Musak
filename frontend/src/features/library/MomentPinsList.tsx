@@ -7,6 +7,7 @@ import styles from './MomentPinsList.module.css';
 
 export interface MomentPinsListProps {
   moments: MomentPin[];
+  canDropMoment?: boolean;
   onPlayMoment: (moment: MomentPin) => void;
   onAddMoment: (payload: {
     label: string;
@@ -15,14 +16,17 @@ export interface MomentPinsListProps {
     note?: string;
   }) => Promise<void>;
   onDeleteMoment: (momentId: string) => Promise<void>;
+  onDropMoment?: (moment: MomentPin) => void;
   onSendMomentToChat: (moment: MomentPin) => void;
 }
 
 export const MomentPinsList: React.FC<MomentPinsListProps> = ({
   moments,
+  canDropMoment = false,
   onPlayMoment,
   onAddMoment,
   onDeleteMoment,
+  onDropMoment,
   onSendMomentToChat,
 }) => {
   const [pinFormOpen, setPinFormOpen] = useState(false);
@@ -143,6 +147,18 @@ export const MomentPinsList: React.FC<MomentPinsListProps> = ({
               </button>
 
               <div className={styles.momentActions}>
+                {onDropMoment && (
+                  <HelpTip content="Drop this exact pinned moment onto a Sound Layer at your playhead">
+                    <button
+                      type="button"
+                      disabled={!canDropMoment}
+                      onClick={() => onDropMoment(moment)}
+                      className={styles.momentDropBtn}
+                    >
+                      + Drop
+                    </button>
+                  </HelpTip>
+                )}
                 <HelpTip content="Attach this exact timestamp and song into your Gemini Producer chat box.">
                   <button type="button" onClick={() => onSendMomentToChat(moment)} className={styles.momentChatBtn}>
                     @Chat

@@ -35,8 +35,14 @@ def build_mashup_edit(project_id: str, project: ProjectState, body: MashupReques
         m_start, m_end = 0.0, min(duration, 16.0)
 
     span = max(0.5, m_end - m_start)
-    ref_dur = max(0.5, float(ref.duration or span))
-    if ref.moments:
+    ref_dur = max(0.5, float(ref.duration or max(span, float(body.ref_end or 0.0))))
+    if body.ref_start is not None or body.ref_end is not None:
+        ref_start = max(0.0, min(float(body.ref_start if body.ref_start is not None else 0.0), max(0.0, ref_dur - 0.1)))
+        default_ref_end = min(ref_dur, ref_start + span)
+        ref_end = max(ref_start + 0.1, min(float(body.ref_end if body.ref_end is not None else default_ref_end), ref_dur))
+        if ref_end <= ref_start:
+            raise HTTPException(status_code=400, detail="Mashup ref_end must be greater than ref_start.")
+    elif ref.moments:
         ref_start = max(0.0, min(float(ref.moments[0].start), max(0.0, ref_dur - 0.5)))
         ref_end = min(ref_dur, max(ref_start + 0.5, float(ref.moments[0].end)))
     else:

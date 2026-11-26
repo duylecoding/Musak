@@ -1,18 +1,21 @@
 import React, { useMemo } from 'react';
-import type { Section, TimeSelection } from '../../../shared/api';
+import type { CueMarker, Section, TimeSelection } from '../../../shared/api';
 import { formatTime, formatTimeRange } from '../../../shared/utils/format';
 import { computeRulerTicks, getSectionTone, type SectionTone } from '../utils';
 import styles from './TimelineRuler.module.css';
 
 export interface TimelineRulerProps {
   trackDuration: number;
-  zoom: 1 | 2 | 4;
+  zoom: number;
   displayTime: number;
   sections: Section[];
+  cues?: CueMarker[];
   selection: TimeSelection | null;
   playheadDiamondRef: React.RefObject<HTMLDivElement>;
   onSeekToTime: (time: number) => void;
   onSelectSection: (section: Section) => void;
+  onSelectSpan?: (start: number, end: number) => void;
+  onDeleteCue?: (cueId: string) => void;
 }
 
 const TONE_CLASS_MAP: Record<SectionTone, string> = {
@@ -23,8 +26,26 @@ const TONE_CLASS_MAP: Record<SectionTone, string> = {
   default: styles.toneDefault,
 };
 
+const CUE_TONE_CLASSES = [
+  styles.cueAmber,
+  styles.cueSky,
+  styles.cueEmerald,
+  styles.cueRose,
+  styles.cueViolet,
+];
+
+function getCueToneClass(cue: CueMarker, index: number): string {
+  const c = (cue.color || '').toLowerCase();
+  if (c.includes('sky') || c.includes('blue') || c.includes('38bdf8')) return styles.cueSky;
+  if (c.includes('emerald') || c.includes('green') || c.includes('10b981') || c.includes('34d399')) return styles.cueEmerald;
+  if (c.includes('rose') || c.includes('red') || c.includes('f43f5e')) return styles.cueRose;
+  if (c.includes('violet') || c.includes('purple') || c.includes('8b5cf6') || c.includes('a78bfa')) return styles.cueViolet;
+  return CUE_TONE_CLASSES[index % CUE_TONE_CLASSES.length];
+}
+
 export const TimelineRuler: React.FC<TimelineRulerProps> = ({
-  trackDuration, zoom, displayTime, sections, selection, playheadDiamondRef, onSeekToTime, onSelectSection,
+  trackDuration, zoom, displayTime, sections, cues = [], selection,
+  playheadDiamondRef, onSeekToTime, onSelectSection, onSelectSpan, onDeleteCue,
 }) => {
   const rulerTicks = useMemo(() => computeRulerTicks(trackDuration, zoom), [trackDuration, zoom]);
 
@@ -70,6 +91,46 @@ export const TimelineRuler: React.FC<TimelineRulerProps> = ({
                 <span className={styles.tickLabel}>{formatTime(t)}</span>
               </div>
             ))}
+          {trackDuration > 0 &&
+            cues.map((cue, idx) => {
+              const leftPct = Math.max(0, Math.min(98, (cue.time / trackDuration) * 100));
+              return (
+                <div
+                  key={cue.id}
+                  style={{ left: `${leftPct}%` }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className={`${styles.cueFlag} ${getCueToneClass(cue, idx)}`}
+                >
+                  <button
+                    type="button"
+                    title={`${cue.label} (${formatTime(cue.time)}) — Click to jump, Shift+Click to select span`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (e.shiftKey && onSelectSpan) {
+                        const s = Math.min(displayTime, cue.time);
+                        const end = Math.max(displayTime, cue.time);
+                        if (end - s >= 0.2) onSelectSpan(s, end);
+                      } else {
+                        onSeekToTime(cue.time);
+                      }
+                    }}
+                    className={styles.cueLabelBtn}
+                  >
+                    {cue.label}
+                  </button>
+                  {onDeleteCue && (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${cue.label}`}
+                      onClick={(e) => { e.stopPropagation(); onDeleteCue(cue.id); }}
+                      className={styles.cueDeleteBtn}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            })}
         </div>
 
         <div className={styles.sectionTrack}>

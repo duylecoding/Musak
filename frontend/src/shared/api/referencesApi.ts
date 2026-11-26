@@ -98,7 +98,14 @@ export function getReferenceAudioUrl(
 
 export function createAutoMashup(
   projectId: string,
-  payload: { ref_id: string; mode: MashupMode; start?: number | null; end?: number | null }
+  payload: {
+    ref_id: string;
+    mode: MashupMode;
+    start?: number | null;
+    end?: number | null;
+    ref_start?: number | null;
+    ref_end?: number | null;
+  }
 ): Promise<ProjectState> {
   return requestJson<ProjectState>(
     `/api/projects/${encodeURIComponent(projectId)}/mashup`,

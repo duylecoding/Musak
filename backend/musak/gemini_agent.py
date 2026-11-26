@@ -41,6 +41,10 @@ VALID_OP_TYPES = {
     "borrow_stem",
     "tempo_pitch",
     "add_sfx",
+    "cut_section",
+    "repeat_section",
+    "beat_repeat",
+    "vinyl_brake",
 }
 VALID_STYLES = {"imitate", "mashup", "creative"}
 VALID_REF_STEMS = {"vocals", "drums", "bass", "other", "full"}
@@ -204,6 +208,11 @@ def _sanitize_operation(
         gain_db = _opt_float(raw_op.get("gain_db"), -24.0, 12.0)
         if gain_db is not None:
             clean["gain_db"] = gain_db
+        if raw_op.get("loop_to_fit") is not None:
+            clean["loop_to_fit"] = bool(raw_op["loop_to_fit"])
+        for fade_field in ("fade_in_ms", "fade_out_ms"):
+            if (fv := _opt_float(raw_op.get(fade_field), 0.0, 4000.0)) is not None:
+                clean[fade_field] = fv
         return EditOperation.model_validate(clean)
 
     # Standard DSP operations & add_sfx
@@ -223,6 +232,9 @@ def _sanitize_operation(
         clean["end"] = e
         clean["sfx_id"] = sfx_id
         clean["gain_db"] = _float_or(raw_op.get("gain_db"), -24.0, 12.0, 0.0)
+        for fade_field in ("fade_in_ms", "fade_out_ms"):
+            if (fv := _opt_float(raw_op.get(fade_field), 0.0, 4000.0)) is not None:
+                clean[fade_field] = fv
         layer_id = raw_op.get("layer_id")
         if isinstance(layer_id, str) and layer_id.strip():
             clean["layer_id"] = layer_id.strip()[:64]
@@ -246,6 +258,11 @@ def _sanitize_operation(
     if op_type == "stem_gain":
         clean["gain_db"] = _float_or(raw_op.get("gain_db"), -80.0, 12.0, -60.0)
         clean["fade_ms"] = _float_or(raw_op.get("fade_ms"), 5.0, 2000.0, 30.0)
+        for fade_field in ("fade_in_ms", "fade_out_ms"):
+            if (fv := _opt_float(raw_op.get(fade_field), 0.0, 4000.0)) is not None:
+                clean[fade_field] = fv
+        if raw_op.get("fade_curve") in ("in", "out", "both"):
+            clean["fade_curve"] = raw_op["fade_curve"]
     elif op_type == "filter_sweep":
         mode = raw_op.get("mode")
         clean["mode"] = mode if mode in ("highpass", "lowpass") else "lowpass"
@@ -270,6 +287,14 @@ def _sanitize_operation(
         clean["semitones"] = _float_or(raw_op.get("semitones"), -12.0, 12.0, 0.0)
         clean["add_reverb"] = bool(raw_op.get("add_reverb", False))
         clean["reverb_wet"] = _float_or(raw_op.get("reverb_wet"), 0.0, 0.8, 0.35)
+    elif op_type == "beat_repeat":
+        clean["division_beats"] = _float_or(raw_op.get("division_beats"), 0.0625, 2.0, 0.25)
+    elif op_type == "repeat_section":
+        try:
+            rc = int(round(float(raw_op.get("repeat_count", 2))))
+        except (TypeError, ValueError):
+            rc = 2
+        clean["repeat_count"] = max(2, min(4, rc))
 
     return EditOperation.model_validate(clean)
 
@@ -512,6 +537,10 @@ def run_producer_chat(
         'borrow_stem:{type,ref_id,ref_stem:"vocals"|"drums"|"bass"|"other"|"full",ref_start,ref_end,target_start,target_end,replace_main_stems,match_bpm,match_key,snap_to_beat}\n'
         'tempo_pitch:{type,start,end,speed_rate:0.5..1.6,semitones:-12..12,add_reverb,reverb_wet:0..0.8,snap_to_beat:false}\n'
         'add_sfx:{type,sfx_id:"riser_noise"|"riser_synth"|"sub_impact"|"reverse_cymbal"|"snare_roll"|"tape_stop",start,end,gain_db:-24..12,snap_to_beat}\n'
+        'beat_repeat:{type,stems,start,end,division_beats:0.125|0.25|0.5,snap_to_beat}\n'
+        'vinyl_brake:{type,stems,start,end,snap_to_beat}\n'
+        'cut_section:{type,start,end,snap_to_beat}\n'
+        'repeat_section:{type,start,end,repeat_count:2..4,snap_to_beat}\n'
         f"{mashup_rule} Timestamps in [0,{duration:.2f}].\n"
         'STRICT JSON ONLY: {"reply":"...","proposals":[{"title":"...","summary":"1 short sentence","style":"imitate"|"mashup"|"creative","start":12.0,"end":20.0,"operations":[...]}]}'
     )

@@ -75,6 +75,9 @@ export const ClipBlock: React.FC<ClipBlockProps> = ({
 
       <span className={styles.emoji}>{getClipEmoji(edit)}</span>
       <span className={styles.title}>{edit.title}</span>
+      {previewRange && (
+        <span className={styles.durationBadge}>{(end - start).toFixed(1)}s</span>
+      )}
       {!edit.enabled && <span className={styles.offBadge}>Off</span>}
 
       <div

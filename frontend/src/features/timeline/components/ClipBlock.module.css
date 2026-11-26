@@ -82,9 +82,28 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 8px;
+  width: 10px;
   cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background-color 150ms ease;
+}
+
+.resizeHandleLeft::after,
+.resizeHandleRight::after {
+  content: '';
+  width: 2px;
+  height: 14px;
+  border-radius: 2px;
+  background-color: var(--text-secondary);
+  opacity: 0.35;
+  transition: opacity 150ms ease, background-color 150ms ease;
+}
+
+.clip:hover .resizeHandleLeft::after,
+.clip:hover .resizeHandleRight::after {
+  opacity: 0.85;
 }
 
 .resizeHandleLeft {
@@ -98,6 +117,23 @@
 .resizeHandleLeft:hover,
 .resizeHandleRight:hover {
   background-color: var(--border-strong);
+}
+
+.resizeHandleLeft:hover::after,
+.resizeHandleRight:hover::after {
+  opacity: 1;
+  background-color: var(--text-primary);
+}
+
+.durationBadge {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-scrim);
+  color: var(--text-accent);
+  flex-shrink: 0;
+  pointer-events: none;
 }
 
 .emoji {

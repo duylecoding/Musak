@@ -15,7 +15,7 @@ export interface TimelineTracksProps {
   mainTrack: MainTrack;
   trackDuration: number;
   displayTime: number;
-  zoom: 1 | 2 | 4;
+  zoom: number;
   stemsReady: boolean;
   stemsProcessing: boolean;
   peaks: WaveformPeaksResponse | null;
@@ -39,6 +39,7 @@ export interface TimelineTracksProps {
   onInspectClip: (edit: EditBlock, el: HTMLElement) => void;
   onToggleLayerEnabled: (edit: EditBlock) => void;
   onDeleteEdit: (editId: string) => void;
+  onDeleteCue?: (cueId: string) => void;
   onToggleAddLayer: () => void;
 }
 
@@ -47,7 +48,7 @@ export const TimelineTracks: React.FC<TimelineTracksProps> = ({
   laneDragSelection, stemChannels, masterEdits, stemEditsMap, layerEdits, clipDragPreview,
   timelineScrollRef, playheadLineRef, playheadDiamondRef, addLayerBtnRef, laneRefs,
   onSeekToTime, onSelectionChange, onUpdateChannel, onLanePointerDown, onClipPointerDown,
-  onInspectClip, onToggleLayerEnabled, onDeleteEdit, onToggleAddLayer,
+  onInspectClip, onToggleLayerEnabled, onDeleteEdit, onDeleteCue, onToggleAddLayer,
 }) => {
   const playheadPct = trackDuration > 0 ? Math.max(0, Math.min(100, (displayTime / trackDuration) * 100)) : 0;
 
@@ -63,6 +64,7 @@ export const TimelineTracks: React.FC<TimelineTracksProps> = ({
           zoom={zoom}
           displayTime={displayTime}
           sections={mainTrack.sections ?? []}
+          cues={mainTrack.cues ?? []}
           selection={selection}
           playheadDiamondRef={playheadDiamondRef}
           onSeekToTime={onSeekToTime}
@@ -70,6 +72,8 @@ export const TimelineTracks: React.FC<TimelineTracksProps> = ({
             onSelectionChange({ start: sec.start, end: sec.end, lane: 'all' });
             onSeekToTime(sec.start);
           }}
+          onSelectSpan={(start, end) => onSelectionChange({ start, end, lane: 'all' })}
+          onDeleteCue={onDeleteCue}
         />
 
         {masterEdits.length > 0 && (

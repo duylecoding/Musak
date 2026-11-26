@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from musak.routers import chat, edits, health, projects, references, sfx, tracks
+from musak.routers import chat, edits, health, projects, references, sfx, track_cues, tracks
 
 ALL_ROUTERS = (
     health.router,
     projects.router,
     tracks.router,
+    track_cues.router,
     references.router,
     edits.router,
     sfx.router,
     chat.router,
 )
 
-__all__ = ["ALL_ROUTERS", "chat", "edits", "health", "projects", "references", "sfx", "tracks"]
+__all__ = ["ALL_ROUTERS", "chat", "edits", "health", "projects", "references", "sfx", "track_cues", "tracks"]

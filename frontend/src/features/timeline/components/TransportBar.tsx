@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Magnet, Pause, Play, Repeat, RotateCcw, Sparkles, Square, ZoomIn } from 'lucide-react';
+import { Bell, Flag, Loader2, Magnet, Minus, Pause, Play, Plus, Repeat, RotateCcw, Sparkles, Square, ZoomIn } from 'lucide-react';
 import { HelpTip } from '../../../shared/components/Tooltip/Tooltip';
 import { formatTime } from '../../../shared/utils/format';
 import styles from './TransportBar.module.css';
@@ -15,22 +15,25 @@ export interface TransportBarProps {
   bakingMix: boolean;
   abMode: 'original' | 'remix';
   beatSnap: boolean;
-  zoom: 1 | 2 | 4;
+  metronomeEnabled?: boolean;
+  zoom: number;
   onPlayPause: () => void;
   onStop: () => void;
   onToggleLoop: () => void;
+  onDropCue?: () => void;
   onBakeStemPreview: () => void;
   onResetStems: () => void;
   onAbModeChange: (mode: 'original' | 'remix') => void;
   onToggleBeatSnap: () => void;
-  onZoomChange: (zoom: 1 | 2 | 4) => void;
+  onToggleMetronome?: () => void;
+  onZoomChange: (zoom: number) => void;
 }
 
 export const TransportBar: React.FC<TransportBarProps> = ({
   isPlaying, loopSelection, hasSelection, displayTime, trackDuration, loadingAudio,
-  isStemPreviewActive, bakingMix, abMode, beatSnap, zoom,
-  onPlayPause, onStop, onToggleLoop, onBakeStemPreview, onResetStems,
-  onAbModeChange, onToggleBeatSnap, onZoomChange,
+  isStemPreviewActive, bakingMix, abMode, beatSnap, metronomeEnabled = false, zoom,
+  onPlayPause, onStop, onToggleLoop, onDropCue, onBakeStemPreview, onResetStems,
+  onAbModeChange, onToggleBeatSnap, onToggleMetronome, onZoomChange,
 }) => (
   <div className={styles.bar}>
     <div className={styles.leftGroup}>
@@ -57,6 +60,16 @@ export const TransportBar: React.FC<TransportBarProps> = ({
           Loop
         </button>
       </HelpTip>
+
+      {onDropCue && (
+        <HelpTip content="Drop a cue marker at the current playhead (shortcut: M).">
+          <button type="button" onClick={onDropCue} className={styles.cueBtn} aria-label="Drop Cue (M)">
+            <Flag className={styles.smallIcon} />
+            <span>Drop Cue</span>
+            <span className={styles.kbdHint}>M</span>
+          </button>
+        </HelpTip>
+      )}
 
       <div className={styles.timecode}>
         <span>{formatTime(displayTime)}</span>
@@ -120,19 +133,51 @@ export const TransportBar: React.FC<TransportBarProps> = ({
         </button>
       </HelpTip>
 
-      <HelpTip content="Zoom in horizontally to inspect beats and fine-tune clip timing.">
+      {onToggleMetronome && (
+        <HelpTip content="Audible metronome click on detected beats during playback.">
+          <button
+            type="button"
+            onClick={onToggleMetronome}
+            aria-pressed={metronomeEnabled}
+            className={metronomeEnabled ? `${styles.snapBtn} ${styles.snapBtnActive}` : styles.snapBtn}
+          >
+            <Bell className={styles.smallIcon} />
+            Click
+          </button>
+        </HelpTip>
+      )}
+
+      <HelpTip content="Stretch the timeline horizontally (1x–16x) or hold Ctrl + Mouse Wheel to zoom in for fine-tuning clips and beats.">
         <div className={styles.segmentedGroup}>
           <ZoomIn className={styles.zoomIcon} />
-          {([1, 2, 4] as const).map((z) => (
+          <button
+            type="button"
+            aria-label="Zoom out"
+            disabled={zoom <= 1}
+            onClick={() => onZoomChange(Math.max(1, Number((zoom / 1.5).toFixed(2))))}
+            className={styles.zoomBtn}
+          >
+            <Minus className={styles.smallIcon} />
+          </button>
+          {([1, 2, 4, 8, 16] as const).map((z) => (
             <button
               key={z}
               type="button"
               onClick={() => onZoomChange(z)}
-              className={zoom === z ? `${styles.zoomBtn} ${styles.zoomBtnActive}` : styles.zoomBtn}
+              className={Math.abs(zoom - z) < 0.05 ? `${styles.zoomBtn} ${styles.zoomBtnActive}` : styles.zoomBtn}
             >
               {z}x
             </button>
           ))}
+          <button
+            type="button"
+            aria-label="Zoom in"
+            disabled={zoom >= 16}
+            onClick={() => onZoomChange(Math.min(16, Number((zoom * 1.5).toFixed(2))))}
+            className={styles.zoomBtn}
+          >
+            <Plus className={styles.smallIcon} />
+          </button>
         </div>
       </HelpTip>
     </div>

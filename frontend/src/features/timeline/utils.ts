@@ -1,5 +1,5 @@
 import type { EditBlock, StemLane } from '../../shared/api';
-import type { InstrumentStem } from '../../shared/utils/timelineMath';
+import { classifyEditLane, type InstrumentStem } from '../../shared/utils/timelineMath';
 import type { StemChannelState } from './constants';
 
 export function createInitialStemChannels(): Record<InstrumentStem, StemChannelState> {
@@ -47,6 +47,10 @@ export function getClipEmoji(edit: EditBlock): string {
     if (first.ref_stem === 'bass') return '🎸';
     return '🎧';
   }
+  if (first.type === 'cut_section') return '✂️';
+  if (first.type === 'repeat_section') return '🔁';
+  if (first.type === 'beat_repeat') return '⚡';
+  if (first.type === 'vinyl_brake') return '💿';
   if (first.type === 'stem_gain') return (first.gain_db ?? 0) <= -30 ? '🔇' : '🔊';
   if (first.type === 'filter_sweep') return '🌊';
   if (first.type === 'delay_throw') return '🔁';
@@ -57,10 +61,35 @@ export function getClipEmoji(edit: EditBlock): string {
   return '🎛️';
 }
 
+export function sameStemSet(a: string[] | undefined, b: string[]): boolean {
+  const normA = [...new Set(a ?? [])].sort();
+  const normB = [...new Set(b)].sort();
+  return normA.length === normB.length && normA.every((v, i) => v === normB[i]);
+}
+
+export function partitionEditsByLane(edits: EditBlock[]) {
+  const masterEdits: EditBlock[] = [];
+  const stemEditsMap: Record<InstrumentStem, EditBlock[]> = { vocals: [], drums: [], bass: [], other: [] };
+  const layerEdits: EditBlock[] = [];
+  for (const edit of edits) {
+    const lane = classifyEditLane(edit);
+    if (lane === 'layer') layerEdits.push(edit);
+    else if (lane === 'master') masterEdits.push(edit);
+    else stemEditsMap[lane].push(edit);
+  }
+  return { masterEdits, stemEditsMap, layerEdits };
+}
+
 export function computeRulerTicks(duration: number, zoom: number): number[] {
   if (duration <= 0) return [];
-  const effectiveDur = duration / zoom;
-  const step = effectiveDur <= 30 ? 5 : effectiveDur <= 90 ? 10 : effectiveDur <= 210 ? 15 : 30;
+  const effectiveDur = duration / Math.max(1, zoom);
+  const step =
+    effectiveDur <= 12 ? 1
+    : effectiveDur <= 25 ? 2
+    : effectiveDur <= 50 ? 5
+    : effectiveDur <= 110 ? 10
+    : effectiveDur <= 210 ? 15
+    : 30;
   const ticks: number[] = [];
   for (let t = 0; t <= duration; t += step) ticks.push(t);
   return ticks;

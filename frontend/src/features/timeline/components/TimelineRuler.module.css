@@ -156,3 +156,65 @@
   font-size: 10px;
   color: var(--text-muted);
 }
+
+.cueFlag {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-2px);
+  z-index: var(--z-playhead);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border-left: 2px solid currentColor;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cueAmber {
+  background-color: var(--accent-amber-soft);
+  color: var(--accent-amber);
+}
+
+.cueSky {
+  background-color: var(--accent-sky-soft);
+  color: var(--accent-sky);
+}
+
+.cueEmerald {
+  background-color: var(--accent-emerald-soft);
+  color: var(--accent-emerald);
+}
+
+.cueRose {
+  background-color: var(--accent-rose-soft);
+  color: var(--accent-rose);
+}
+
+.cueViolet {
+  background-color: var(--accent-primary-soft);
+  color: var(--text-accent);
+}
+
+.cueLabelBtn {
+  color: var(--text-primary);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.cueDeleteBtn {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.cueDeleteBtn:hover {
+  color: var(--accent-rose);
+  background-color: var(--bg-app);
+}

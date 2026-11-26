@@ -62,6 +62,21 @@ export function updateEdit(
   );
 }
 
+export function duplicateEdit(
+  projectId: string,
+  editId: string,
+  start?: number
+): Promise<ProjectState> {
+  return requestJson<ProjectState>(
+    `/api/projects/${encodeURIComponent(projectId)}/edits/${encodeURIComponent(editId)}/duplicate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(start !== undefined ? { start } : {}),
+    }
+  );
+}
+
 export function deleteEdit(projectId: string, editId: string): Promise<ProjectState> {
   return requestJson<ProjectState>(
     `/api/projects/${encodeURIComponent(projectId)}/edits/${encodeURIComponent(editId)}`,

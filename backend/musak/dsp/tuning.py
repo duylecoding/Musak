@@ -90,7 +90,7 @@ def tune_proposal_operations(
             op.start, op.end = _shift_window(op.start, op.end)
 
         if keep_vocals_clear:
-            if op.type == "add_sfx":
+            if op.type in ("add_sfx", "cut_section", "repeat_section"):
                 pass
             elif op.type == "borrow_stem":
                 if op.replace_main_stems:

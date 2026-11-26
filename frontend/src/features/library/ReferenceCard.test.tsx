@@ -54,34 +54,15 @@ function createProjectMock(overrides: Record<string, unknown> = {}) {
       updated_at: '2026-01-01T00:00:00Z',
       render_version: 1,
       main_track: {
-        id: 'main-1',
-        name: 'Main Song',
-        duration: 180,
-        sample_rate: 44100,
-        bpm: 126,
-        key: 'Cm',
-        beats: [],
-        sections: [],
-        lyric_hooks: [],
-        stems_status: 'none',
-        stems_error: null,
-        stems: [],
-        audio_url: '/audio.wav',
-        rendered_url: '/rendered.wav',
-        stem_urls: {},
+        id: 'main-1', name: 'Main Song', duration: 180, sample_rate: 44100, bpm: 126, key: 'Cm',
+        beats: [], sections: [], lyric_hooks: [], stems_status: 'none', stems_error: null,
+        stems: [], audio_url: '/audio.wav', rendered_url: '/rendered.wav', stem_urls: {},
       },
-      references: [],
-      edits: [],
-      redo_stack: [],
-      chat_messages: [],
+      references: [], edits: [], redo_stack: [], chat_messages: [],
     },
     health: {
-      status: 'ok',
-      cuda_available: false,
-      gpu_name: null,
-      ffmpeg_available: true,
-      api_key_configured: true,
-      model: 'gemini-2.5-flash',
+      status: 'ok', cuda_available: false, gpu_name: null,
+      ffmpeg_available: true, api_key_configured: true, model: 'gemini-2.5-flash',
     },
     attachedRefIds: [],
     mainTrackBusy: false,
@@ -227,5 +208,29 @@ describe('ReferenceCard', () => {
     expect(iframe).toHaveAttribute('referrerPolicy', 'strict-origin-when-cross-origin');
     expect(iframe.src).toContain('https://www.youtube.com/embed/dQw4w9WgXcQ');
     expect(screen.getByRole('button', { name: /open on youtube/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Drop' })).toBeDisabled();
+  });
+
+  it('passes moment.start and moment.end to addReferenceLayer when clicking + Drop', async () => {
+    const projectMock = createProjectMock();
+    mockedUseProject.mockReturnValue(projectMock as unknown as ReturnType<typeof useProject>);
+
+    const ref = makeReference();
+    render(<ReferenceCard reference={ref} onOpenSettings={vi.fn()} />);
+
+    const dropBtn = screen.getByRole('button', { name: '+ Drop' });
+    expect(dropBtn).not.toBeDisabled();
+    fireEvent.click(dropBtn);
+
+    await waitFor(() => {
+      expect(projectMock.addReferenceLayer).toHaveBeenCalledTimes(1);
+    });
+    expect(projectMock.addReferenceLayer).toHaveBeenCalledWith({
+      ref,
+      refStart: 64,
+      refEnd: 80,
+      targetStart: 15,
+      label: 'Chorus Drop',
+    });
   });
 });

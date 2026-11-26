@@ -1,9 +1,10 @@
+import type { EditBlock, EditProposal } from './editTypes';
+
+export * from './editTypes';
+
 export type StemDevice = 'auto' | 'cuda' | 'cpu';
 export type StemLane = 'all' | 'vocals' | 'drums' | 'bass' | 'other';
 export type MashupMode = 'ref_vocals_on_main' | 'main_vocals_on_ref' | 'ref_drums_on_main' | 'smart_auto';
-export type ExportFormat = 'wav' | 'mp3' | 'zip';
-export type ExportTarget = 'remix' | 'instrumental' | 'vocals' | 'stems_zip';
-export type MasterPreset = 'off' | 'balanced' | 'club' | 'warm';
 
 export interface TimeSelection {
   start: number;
@@ -39,14 +40,6 @@ export interface SfxItem {
   preview_url: string;
 }
 
-export interface EditUpdatePayload {
-  enabled?: boolean;
-  start?: number;
-  end?: number;
-  title?: string;
-  gain_db?: number;
-}
-
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -71,6 +64,13 @@ export interface LyricHook {
   kind: 'hook' | 'lyric' | 'drop';
 }
 
+export interface CueMarker {
+  id: string;
+  label: string;
+  time: number;
+  color: string;
+}
+
 export interface MainTrack {
   id: string;
   name: string;
@@ -81,6 +81,7 @@ export interface MainTrack {
   beats: number[];
   sections: Section[];
   lyric_hooks: LyricHook[];
+  cues?: CueMarker[];
   stems_status: 'none' | 'processing' | 'ready' | 'error';
   stems_error: string | null;
   stems: string[];
@@ -123,92 +124,17 @@ export interface ReferenceTrack {
   compatibility: MashupCompatibility | null;
 }
 
-export interface ExportOptions {
-  format?: ExportFormat;
-  target?: ExportTarget;
-  master_preset?: MasterPreset;
-}
-
-export interface ProposalTunePayload {
-  intensity?: number;
-  keep_vocals_clear?: boolean;
-  shift_beats?: number;
-}
-
-export interface EditOperation {
-  type:
-    | 'stem_gain'
-    | 'filter_sweep'
-    | 'reverb_throw'
-    | 'delay_throw'
-    | 'lofi_eq'
-    | 'bass_boost'
-    | 'borrow_stem'
-    | 'tempo_pitch'
-    | 'add_sfx';
-  stems?: string[];
-  start?: number;
-  end?: number;
-  snap_to_beat?: boolean;
-  gain_db?: number;
-  fade_ms?: number;
-  mode?: 'highpass' | 'lowpass';
-  start_hz?: number;
-  end_hz?: number;
-  room_size?: number;
-  wet_level?: number;
-  delay_beats?: number;
-  feedback?: number;
-  mix?: number;
-  low_cut_hz?: number;
-  high_cut_hz?: number;
-  drive_db?: number;
-  cutoff_hz?: number;
-  ref_id?: string;
-  ref_stem?: 'vocals' | 'drums' | 'bass' | 'other' | 'full';
-  ref_start?: number;
-  ref_end?: number;
-  target_start?: number;
-  target_end?: number;
-  replace_main_stems?: string[];
-  match_bpm?: boolean;
-  match_key?: boolean;
-  speed_rate?: number;
-  semitones?: number;
-  add_reverb?: boolean;
-  reverb_wet?: number;
-  sfx_id?: string;
-  layer_id?: string;
-}
-
-export interface EditBlock {
-  id: string;
-  title: string;
-  description: string;
-  start: number;
-  end: number;
-  enabled: boolean;
-  operations: EditOperation[];
-  source_proposal_id?: string | null;
-  created_at: string;
-}
-
-export interface EditProposal {
-  id: string;
-  title: string;
-  summary: string;
-  style: 'imitate' | 'mashup' | 'creative';
-  start: number;
-  end: number;
-  operations: EditOperation[];
-  base_operations?: EditOperation[];
-  intensity?: number;
-  keep_vocals_clear?: boolean;
-  shift_beats?: number;
-  preview_url: string | null;
-  preview_start: number;
-  preview_end: number;
-  applied: boolean;
+export interface ReferenceLayerOptions {
+  ref: ReferenceTrack;
+  stem?: 'vocals' | 'drums' | 'bass' | 'other' | 'full';
+  refStart?: number;
+  refEnd?: number;
+  targetStart?: number;
+  replaceMainStems?: string[];
+  matchBpm?: boolean;
+  matchKey?: boolean;
+  loopToFit?: boolean;
+  label?: string;
 }
 
 export interface ChatMessage {

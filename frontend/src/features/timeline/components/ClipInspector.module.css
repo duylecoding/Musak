@@ -14,21 +14,51 @@
 
 .meta {
   min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.title {
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.emoji {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.titleInput {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  border: 1px solid transparent;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.titleInput:hover {
+  border-color: var(--border-default);
+  background-color: var(--bg-app);
+}
+
+.titleInput:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background-color: var(--bg-app);
 }
 
 .range {
   font-size: 10px;
   font-family: var(--font-mono);
   color: var(--text-secondary);
+  padding-left: 2px;
 }
 
 .closeBtn {
@@ -120,19 +150,95 @@
   cursor: pointer;
 }
 
+.fadeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.fadeGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fadeLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.pill {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.pill:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.pillActive {
+  background-color: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+  color: var(--text-accent);
+}
+
+.footerActions {
+  display: flex;
+  gap: 6px;
+  padding-top: var(--space-1);
+}
+
+.dupBtn {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.dupBtn:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+}
+
+.dupBtn:disabled {
+  opacity: 0.5;
+}
+
 .deleteBtn {
-  width: 100%;
-  padding: 6px;
+  flex: 1;
+  padding: 6px 8px;
   border-radius: var(--radius-md);
   background-color: var(--accent-rose-soft);
   border: 1px solid var(--accent-rose);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--accent-rose);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .deleteBtn:disabled {
@@ -140,13 +246,13 @@
 }
 
 .iconSm {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 .iconSpin {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   animation: spin 1s linear infinite;
 }
 

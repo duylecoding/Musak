@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Play, Square, X } from 'lucide-react';
-import { getSfxPreviewUrl, type ReferenceTrack, type SfxItem } from '../../../shared/api';
+import { getSfxPreviewUrl, type ReferenceLayerOptions, type ReferenceTrack, type SfxItem } from '../../../shared/api';
 import { Popover } from '../../../shared/components/Popover/Popover';
 import { formatTime } from '../../../shared/utils/format';
+import { ReferenceSlicePicker } from './ReferenceSlicePicker';
 import styles from './AddLayerPopover.module.css';
 
 export interface AddLayerPopoverProps {
@@ -15,13 +16,14 @@ export interface AddLayerPopoverProps {
   busy: boolean;
   onClose: () => void;
   onDropSfx: (sfx: SfxItem) => Promise<void>;
-  onDropReference: (ref: ReferenceTrack, stem: 'vocals' | 'drums' | 'bass' | 'other' | 'full') => Promise<void>;
+  onDropReference: (options: ReferenceLayerOptions) => Promise<void>;
 }
 
 export const AddLayerPopover: React.FC<AddLayerPopoverProps> = ({
   open, anchorRef, dropTime, mainTrackBpm, sfxItems, downloadableRefs, busy, onClose, onDropSfx, onDropReference,
 }) => {
   const [auditionId, setAuditionId] = useState<string | null>(null);
+  const [selectedRefId, setSelectedRefId] = useState<string>('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const stopAudition = useCallback(() => {
@@ -37,6 +39,16 @@ export const AddLayerPopover: React.FC<AddLayerPopoverProps> = ({
   useEffect(() => { if (!open) stopAudition(); }, [open, stopAudition]);
   useEffect(() => () => stopAudition(), [stopAudition]);
 
+  useEffect(() => {
+    if (downloadableRefs.length === 0) {
+      setSelectedRefId('');
+    } else if (!downloadableRefs.some((r) => r.id === selectedRefId)) {
+      setSelectedRefId(downloadableRefs[0].id);
+    }
+  }, [downloadableRefs, selectedRefId]);
+
+  const activeRef = downloadableRefs.find((r) => r.id === selectedRefId) ?? downloadableRefs[0] ?? null;
+
   const toggleAudition = (sfx: SfxItem) => {
     if (auditionId === sfx.id) { stopAudition(); return; }
     stopAudition();
@@ -49,7 +61,7 @@ export const AddLayerPopover: React.FC<AddLayerPopoverProps> = ({
   };
 
   return (
-    <Popover anchorRef={anchorRef} open={open} onClose={() => { stopAudition(); onClose(); }} width={320} ariaLabel="Add Sound Layer">
+    <Popover anchorRef={anchorRef} open={open} onClose={() => { stopAudition(); onClose(); }} width={336} ariaLabel="Add Sound Layer">
       <div className={styles.body}>
         <div className={styles.header}>
           <div>
@@ -93,27 +105,32 @@ export const AddLayerPopover: React.FC<AddLayerPopoverProps> = ({
           )}
         </div>
 
-        {downloadableRefs.length > 0 && (
+        {activeRef && (
           <div className={styles.refSection}>
             <div className={styles.kicker}>Reference Clips</div>
-            <div className={styles.refList}>
-              {downloadableRefs.map((ref) => (
-                <div key={ref.id} className={styles.refCard}>
-                  <div className={styles.refTitle}>{ref.title}</div>
-                  <div className={styles.refButtons}>
-                    <button type="button" disabled={busy} onClick={() => { stopAudition(); void onDropReference(ref, 'full'); }} className={styles.refBtn}>
-                      + Full
-                    </button>
-                    {ref.stems_status === 'ready' &&
-                      (['vocals', 'drums', 'bass', 'other'] as const).map((stem) => (
-                        <button key={stem} type="button" disabled={busy} onClick={() => { stopAudition(); void onDropReference(ref, stem); }} className={styles.refStemBtn}>
-                          + {stem}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {downloadableRefs.length > 1 ? (
+              <select
+                aria-label="Select reference track"
+                value={activeRef.id}
+                onChange={(e) => setSelectedRefId(e.target.value)}
+                className={styles.refSelect}
+              >
+                {downloadableRefs.map((ref) => (
+                  <option key={ref.id} value={ref.id}>{ref.title}</option>
+                ))}
+              </select>
+            ) : (
+              <div className={styles.refTitle}>{activeRef.title}</div>
+            )}
+            <ReferenceSlicePicker
+              refTrack={activeRef}
+              dropTime={dropTime}
+              busy={busy}
+              onDropReference={async (options) => {
+                stopAudition();
+                await onDropReference(options);
+              }}
+            />
           </div>
         )}
       </div>

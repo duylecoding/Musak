@@ -178,6 +178,16 @@
   white-space: nowrap;
 }
 
+.refSelect {
+  width: 100%;
+  padding: 5px var(--space-2);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
 .refButtons {
   display: flex;
   flex-wrap: wrap;

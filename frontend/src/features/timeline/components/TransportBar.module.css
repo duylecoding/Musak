@@ -200,6 +200,36 @@
   color: var(--text-accent);
 }
 
+.cueBtn {
+  height: 28px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-weight: 500;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.cueBtn:hover {
+  background-color: var(--accent-amber-soft);
+  border-color: var(--accent-amber);
+  color: var(--text-primary);
+}
+
+.kbdHint {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
 .zoomIcon {
   width: 12px;
   height: 12px;

@@ -54,15 +54,20 @@ def snap_range_to_beats(
 
 def _cosine_fade_mask(length: int, fade_samples: int) -> np.ndarray:
     """Return a smooth `(length, 1)` [0..1] cosine envelope for click-free crossfades."""
+    return _asymmetric_cosine_mask(length, fade_samples, fade_samples)
+
+
+def _asymmetric_cosine_mask(length: int, fade_in_samples: int, fade_out_samples: int) -> np.ndarray:
+    """Return a smooth `(length, 1)` [0..1] cosine envelope with independent fade-in/fade-out lengths."""
     if length <= 0:
         return np.zeros((0, 1), dtype=np.float32)
     mask = np.ones(length, dtype=np.float32)
-    f = min(max(0, fade_samples), length // 2)
-    if f > 0:
-        t = np.linspace(0.0, math.pi, f, dtype=np.float32)
-        ramp_in = 0.5 * (1.0 - np.cos(t))
-        mask[:f] = ramp_in
-        mask[-f:] = ramp_in[::-1]
+    fi = min(max(0, fade_in_samples), length // 2)
+    fo = min(max(0, fade_out_samples), length // 2)
+    if fi > 0:
+        mask[:fi] = 0.5 * (1.0 - np.cos(np.linspace(0.0, math.pi, fi, dtype=np.float32)))
+    if fo > 0:
+        mask[-fo:] = 0.5 * (1.0 + np.cos(np.linspace(0.0, math.pi, fo, dtype=np.float32)))
     return mask[:, np.newaxis]
 
 

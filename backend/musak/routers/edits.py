@@ -4,11 +4,19 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import FileResponse
 
-from musak.dsp import export_mix, remap_operation_range, render_proposal_preview, tune_proposal_operations
-from musak.models import CreateEditRequest, EditBlock, ExportRequest, ProjectState, TuneProposalRequest, UpdateEditRequest
+from musak.dsp import export_mix, render_proposal_preview
+from musak.models import (
+    CreateEditRequest,
+    DuplicateEditRequest,
+    EditBlock,
+    ExportRequest,
+    ProjectState,
+    TuneProposalRequest,
+    UpdateEditRequest,
+)
 from musak.routers.deps import (
     NO_STORE_HEADERS,
     _enrich_project,
@@ -17,6 +25,7 @@ from musak.routers.deps import (
     _sync_proposal_applied_flags,
     store,
 )
+from musak.routers.edit_patch import apply_patch_to_edit, apply_proposal_tune_fields, build_duplicated_edit
 from musak.storage import generate_id, utc_now_iso, validate_id
 
 logger = logging.getLogger(__name__)
@@ -97,30 +106,7 @@ def tune_proposal(project_id: str, proposal_id: str, body: TuneProposalRequest) 
         prop = _find_proposal(working, proposal_id)
         if prop is None:
             raise HTTPException(status_code=404, detail=f"Proposal '{proposal_id}' not found.")
-        if not prop.base_operations:
-            prop.base_operations = [op.model_copy(deep=True) for op in prop.operations]
-
-        new_intensity = body.intensity if body.intensity is not None else prop.intensity
-        new_keep_vocals = body.keep_vocals_clear if body.keep_vocals_clear is not None else prop.keep_vocals_clear
-        new_shift_beats = body.shift_beats if body.shift_beats is not None else prop.shift_beats
-
-        tuned_ops = tune_proposal_operations(
-            base_ops=prop.base_operations,
-            intensity=new_intensity,
-            keep_vocals_clear=new_keep_vocals,
-            shift_beats=new_shift_beats,
-            bpm=working.main_track.bpm,
-            duration=working.main_track.duration,
-        )
-        prop.operations = tuned_ops
-        prop.intensity = round(float(new_intensity), 3)
-        prop.keep_vocals_clear = bool(new_keep_vocals)
-        prop.shift_beats = round(float(new_shift_beats), 3)
-
-        starts = [x for op in tuned_ops if (x := (op.target_start if op.type == "borrow_stem" else op.start)) is not None]
-        ends = [x for op in tuned_ops if (x := (op.target_end if op.type == "borrow_stem" else op.end)) is not None]
-        if starts and ends:
-            prop.start, prop.end = round(min(starts), 3), round(max(ends), 3)
+        apply_proposal_tune_fields(working, prop, body)
 
         try:
             render_proposal_preview(store, working, prop, nonce=generate_id("t"))
@@ -153,28 +139,38 @@ def patch_edit(project_id: str, edit_id: str, body: UpdateEditRequest) -> Projec
         target = next((e for e in proj.edits if e.id == edit_id), None)
         if target is None:
             raise HTTPException(status_code=404, detail=f"Edit '{edit_id}' not found.")
-        if body.enabled is not None:
-            target.enabled = body.enabled
-        if body.title is not None:
-            target.title = body.title
-        if body.start is not None or body.end is not None:
-            duration = proj.main_track.duration if proj.main_track is not None else max(target.end, 3600.0)
-            old_start, old_end = float(target.start), float(target.end)
-            new_start = max(0.0, min(float(body.start), duration)) if body.start is not None else old_start
-            new_end = max(0.0, min(float(body.end), duration)) if body.end is not None else old_end
-            if new_end <= new_start:
-                raise HTTPException(status_code=400, detail="Edit end time must be greater than start time.")
-            for op in target.operations:
-                remap_operation_range(op, old_start, old_end, new_start, new_end, duration)
-            target.start, target.end = round(new_start, 3), round(new_end, 3)
-        if body.gain_db is not None:
-            new_gain = round(float(body.gain_db), 3)
-            for op in target.operations:
-                if op.type in ("stem_gain", "add_sfx", "borrow_stem", "bass_boost"):
-                    op.gain_db = new_gain
+        apply_patch_to_edit(proj, target, body)
         return True
 
     return _mutate_and_render(project_id, _patch)
+
+
+@router.post("/api/projects/{project_id}/edits/{edit_id}/duplicate", response_model=ProjectState)
+def duplicate_edit(
+    project_id: str,
+    edit_id: str,
+    body: DuplicateEditRequest | None = Body(default=None),
+) -> ProjectState:
+    validate_id(project_id, "project_id")
+    validate_id(edit_id, "edit_id")
+    project = store.get_project(project_id)
+    if project.main_track is None:
+        raise HTTPException(status_code=400, detail="Upload a main track before duplicating edits.")
+    if not any(e.id == edit_id for e in project.edits):
+        raise HTTPException(status_code=404, detail=f"Edit '{edit_id}' not found.")
+
+    def _duplicate(proj: ProjectState) -> bool:
+        if proj.main_track is None:
+            raise HTTPException(status_code=400, detail="Upload a main track before duplicating edits.")
+        orig = next((e for e in proj.edits if e.id == edit_id), None)
+        if orig is None:
+            raise HTTPException(status_code=404, detail=f"Edit '{edit_id}' not found.")
+        cloned = build_duplicated_edit(proj, orig, body.start if body is not None else None)
+        proj.edits.append(cloned)
+        proj.redo_stack.clear()
+        return True
+
+    return _mutate_and_render(project_id, _duplicate)
 
 
 @router.delete("/api/projects/{project_id}/edits/{edit_id}", response_model=ProjectState)

@@ -26,14 +26,15 @@ const STEM_OPTIONS = [
   { stem: 'other', label: 'Melody / Other' },
 ] as const;
 
+const COMPAT_STYLE: Record<MashupCompatibility['rating'], { prefix: string; badgeClass: string }> = {
+  great: { prefix: 'Great', badgeClass: styles.badgeCompatGreat },
+  good: { prefix: 'Good', badgeClass: styles.badgeCompatGood },
+  tricky: { prefix: 'Tricky', badgeClass: styles.badgeCompatTricky },
+};
+
 function getMatchBadge(compat: MashupCompatibility) {
-  if (compat.rating === 'great') {
-    return { label: `Great ${Math.round(compat.score)}%`, badgeClass: styles.badgeCompatGreat };
-  }
-  if (compat.rating === 'good') {
-    return { label: `Good ${Math.round(compat.score)}%`, badgeClass: styles.badgeCompatGood };
-  }
-  return { label: `Tricky ${Math.round(compat.score)}%`, badgeClass: styles.badgeCompatTricky };
+  const cfg = COMPAT_STYLE[compat.rating];
+  return { label: `${cfg.prefix} ${Math.round(compat.score)}%`, badgeClass: cfg.badgeClass };
 }
 
 export interface ReferenceCardProps {
@@ -110,6 +111,11 @@ export const ReferenceCard: React.FC<ReferenceCardProps> = ({ reference, onOpenS
     setLayerMenuOpen(false);
     void runBusy('layer', () => addReferenceLayer(reference, stem, playheadRef.current));
   };
+
+  const handleDropMoment = (moment: MomentPin) =>
+    void runBusy('layer', () =>
+      addReferenceLayer({ ref: reference, refStart: moment.start, refEnd: moment.end, targetStart: playheadRef.current, label: moment.label })
+    );
 
   const stemsReady = reference.stems_status === 'ready';
   const stemsProcessing = reference.stems_status === 'processing' || busy === 'stems';
@@ -225,7 +231,15 @@ export const ReferenceCard: React.FC<ReferenceCardProps> = ({ reference, onOpenS
         )}
       </div>
 
-      <MomentPinsList moments={reference.moments} onPlayMoment={handlePlayMoment} onAddMoment={(payload) => addMoment(reference.id, payload)} onDeleteMoment={(momentId) => deleteMoment(reference.id, momentId)} onSendMomentToChat={(moment) => sendMomentToChat(reference, moment)} />
+      <MomentPinsList
+        moments={reference.moments}
+        canDropMoment={hasMainTrack && canPlayLocal && busy !== 'layer'}
+        onPlayMoment={handlePlayMoment}
+        onAddMoment={(payload) => addMoment(reference.id, payload)}
+        onDeleteMoment={(momentId) => deleteMoment(reference.id, momentId)}
+        onDropMoment={handleDropMoment}
+        onSendMomentToChat={(moment) => sendMomentToChat(reference, moment)}
+      />
     </div>
   );
 };

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 
 import librosa
@@ -11,7 +12,7 @@ import soundfile as sf
 
 from musak.audio_analysis import ensure_stereo, resample_stereo, semitone_diff_between_keys
 from musak.config import STEM_NAMES
-from musak.dsp.utils import _cosine_fade_mask, snap_range_to_beats
+from musak.dsp.utils import _asymmetric_cosine_mask, _cosine_fade_mask, snap_range_to_beats
 from musak.models import EditOperation, ProjectState
 from musak.storage import ProjectStore
 
@@ -25,6 +26,41 @@ def compute_effective_borrow_rate(main_bpm: float, ref_bpm: float) -> float:
         key=lambda b: abs(main_bpm - b),
     )
     return float(np.clip(main_bpm / effective_ref_bpm, 0.5, 2.0))
+
+
+def _tile_clip_with_crossfade(clip: np.ndarray, target_len: int, xfade_samples: int) -> np.ndarray:
+    """Seamlessly tile `clip` to `target_len` using short cosine crossfades at loop boundaries."""
+    clip_len = len(clip)
+    if target_len <= 0 or clip_len <= 0:
+        return np.zeros((max(0, target_len), 2), dtype=np.float32)
+    if target_len <= clip_len:
+        return clip[:target_len].astype(np.float32, copy=True)
+
+    xf = min(max(0, xfade_samples), clip_len // 4)
+    if xf <= 1:
+        repeats = int(math.ceil(target_len / float(clip_len)))
+        return np.tile(clip, (repeats, 1))[:target_len].astype(np.float32, copy=False)
+
+    out = np.zeros((target_len, 2), dtype=np.float32)
+    first_n = min(clip_len, target_len)
+    out[:first_n] = clip[:first_n]
+    write_pos = first_n
+
+    t = np.linspace(0.0, math.pi, xf, dtype=np.float32)[:, np.newaxis]
+    fade_in = 0.5 * (1.0 - np.cos(t))
+    fade_out = 0.5 * (1.0 + np.cos(t))
+
+    while write_pos < target_len:
+        seam = write_pos - xf
+        ov = min(xf, target_len - seam)
+        out[seam : seam + ov] = out[seam : seam + ov] * fade_out[:ov] + clip[:ov] * fade_in[:ov]
+        rem = min(clip_len - xf, target_len - write_pos)
+        if rem > 0:
+            out[write_pos : write_pos + rem] = clip[xf : xf + rem]
+            write_pos += rem
+        else:
+            break
+    return out
 
 
 def _apply_borrow_stem(
@@ -110,11 +146,21 @@ def _apply_borrow_stem(
     if target_len <= 0:
         return stem_buffers, full_mix, None
 
-    fitted = np.zeros((target_len, 2), dtype=np.float32)
-    copy_len = min(target_len, len(clip))
-    fitted[:copy_len] = clip[:copy_len]
-    fade_samples = min(int(0.03 * sr), copy_len // 2)
-    fitted[:copy_len] *= _cosine_fade_mask(copy_len, fade_samples)
+    if bool(op.loop_to_fit) and target_len > len(clip) > 0:
+        fitted = _tile_clip_with_crossfade(clip, target_len, int(round(0.020 * sr)))
+        active_len = target_len
+    else:
+        fitted = np.zeros((target_len, 2), dtype=np.float32)
+        active_len = min(target_len, len(clip))
+        fitted[:active_len] = clip[:active_len]
+
+    fi_ms = float(np.clip(op.fade_in_ms if op.fade_in_ms is not None else 30.0, 0.0, 4000.0))
+    fo_ms = float(np.clip(op.fade_out_ms if op.fade_out_ms is not None else 30.0, 0.0, 4000.0))
+    fitted[:active_len] *= _asymmetric_cosine_mask(
+        active_len,
+        int(round(fi_ms * sr / 1000.0)),
+        int(round(fo_ms * sr / 1000.0)),
+    )
 
     if op.gain_db is not None:
         gain = 0.0 if op.gain_db <= -60.0 else float(10.0 ** (op.gain_db / 20.0))

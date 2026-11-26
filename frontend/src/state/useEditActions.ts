@@ -3,6 +3,7 @@ import type React from 'react';
 import {
   createEdit as apiCreateEdit,
   deleteEdit as apiDeleteEdit,
+  duplicateEdit as apiDuplicateEdit,
   exportProjectAudio,
   redoEdit,
   undoEdit,
@@ -14,10 +15,18 @@ import type {
   ExportOptions,
   ProjectState,
   ProjectSummary,
+  ReferenceLayerOptions,
   ReferenceTrack,
   SfxItem,
   TimeSelection,
 } from '../shared/api';
+import {
+  buildReferenceLayerPayload,
+  buildSfxLayerPayload,
+  EXPORT_TARGET_LABELS,
+  normalizeReferenceLayerOptions,
+} from './editPayloads';
+import type { AddReferenceLayerFn } from './projectContextTypes';
 
 interface EditActionsDeps {
   activeProjectIdRef: React.MutableRefObject<string | null>;
@@ -29,13 +38,6 @@ interface EditActionsDeps {
   refreshProjectList: () => Promise<ProjectSummary[]>;
   showToast: (type: 'error' | 'success', message: string) => void;
 }
-
-const EXPORT_TARGET_LABELS: Record<NonNullable<ExportOptions['target']>, { busy: (fmt: string) => string; done: (fmt: string) => string }> = {
-  remix: { busy: (f) => `Exporting ${f}...`, done: (f) => `Exported ${f} remix!` },
-  instrumental: { busy: () => 'Exporting Instrumental...', done: () => 'Exported Instrumental WAV!' },
-  vocals: { busy: () => 'Exporting Acapella...', done: () => 'Exported Acapella (Vocals) WAV!' },
-  stems_zip: { busy: () => 'Zipping 4 Stems...', done: () => 'Exported all 4 stems (.zip)!' },
-};
 
 export function useEditActions({
   activeProjectIdRef,
@@ -92,6 +94,25 @@ export function useEditActions({
     [activeProjectIdRef, setAbMode, setCurrentProject, showToast]
   );
 
+  const duplicateEdit = useCallback(
+    async (editId: string, start?: number) => {
+      const targetProjectId = activeProjectIdRef.current;
+      if (!targetProjectId) return;
+      try {
+        const updated = await apiDuplicateEdit(targetProjectId, editId, start);
+        await refreshProjectList();
+        if (activeProjectIdRef.current !== targetProjectId) return;
+        setCurrentProject(updated);
+        setAbMode('remix');
+        showToast('success', 'Duplicated edit block!');
+      } catch (err) {
+        showToast('error', err instanceof Error ? err.message : 'Failed to duplicate edit.');
+        throw err;
+      }
+    },
+    [activeProjectIdRef, refreshProjectList, setAbMode, setCurrentProject, showToast]
+  );
+
   const deleteEdit = useCallback(
     async (editId: string) => {
       const targetProjectId = activeProjectIdRef.current;
@@ -115,28 +136,9 @@ export function useEditActions({
       const track = currentProject?.main_track;
       if (!targetProjectId || !track) return;
 
-      const rawStart = startTime ?? selection?.start ?? playheadRef.current;
-      const dur = Math.max(0.5, sfx.default_duration || 2.0);
-      const clampedStart = Math.max(0, Math.min(Math.max(0, track.duration - 0.5), rawStart));
-      const end = Math.min(track.duration, clampedStart + dur);
-
+      const payload = buildSfxLayerPayload(sfx, track, startTime ?? selection?.start ?? playheadRef.current);
       try {
-        const updated = await apiCreateEdit(targetProjectId, {
-          title: sfx.name,
-          description: sfx.description,
-          start: Number(clampedStart.toFixed(2)),
-          end: Number(end.toFixed(2)),
-          operations: [
-            {
-              type: 'add_sfx',
-              sfx_id: sfx.id,
-              start: Number(clampedStart.toFixed(2)),
-              end: Number(end.toFixed(2)),
-              gain_db: 0,
-              snap_to_beat: true,
-            },
-          ],
-        });
+        const updated = await apiCreateEdit(targetProjectId, payload);
         await refreshProjectList();
         if (activeProjectIdRef.current !== targetProjectId) return;
         setCurrentProject(updated);
@@ -152,7 +154,7 @@ export function useEditActions({
 
   const addReferenceLayer = useCallback(
     async (
-      ref: ReferenceTrack,
+      refOrOptions: ReferenceTrack | ReferenceLayerOptions,
       stem: 'vocals' | 'drums' | 'bass' | 'other' | 'full' = 'full',
       startTime?: number
     ) => {
@@ -160,54 +162,28 @@ export function useEditActions({
       const track = currentProject?.main_track;
       if (!targetProjectId || !track) return;
 
-      const rawStart = startTime ?? selection?.start ?? playheadRef.current;
-      const bpm = track.bpm && track.bpm > 20 ? track.bpm : 120;
-      const bar4Dur = 4 * 4 * (60 / bpm);
-      const maxClipLen = Math.min(
-        ref.duration && ref.duration > 1 ? ref.duration : bar4Dur,
-        Math.max(4, Math.min(16, bar4Dur))
+      const opts = normalizeReferenceLayerOptions(refOrOptions, stem, startTime);
+      const { payload, shortTitle, stemLabel } = buildReferenceLayerPayload(
+        track,
+        opts,
+        selection?.start ?? playheadRef.current
       );
-      const clampedStart = Math.max(0, Math.min(Math.max(0, track.duration - 1), rawStart));
-      const end = Math.min(track.duration, clampedStart + maxClipLen);
-      const actualLen = Math.max(0.5, end - clampedStart);
-
-      const stemLabel =
-        stem === 'full' ? 'Clip' : stem === 'other' ? 'Melody' : stem.charAt(0).toUpperCase() + stem.slice(1);
-      const shortTitle = ref.title.length > 22 ? `${ref.title.slice(0, 22)}…` : ref.title;
 
       try {
-        const updated = await apiCreateEdit(targetProjectId, {
-          title: `@${shortTitle} ${stemLabel}`,
-          description: `Layered ${stemLabel.toLowerCase()} from ${ref.title}, BPM & key matched.`,
-          start: Number(clampedStart.toFixed(2)),
-          end: Number(end.toFixed(2)),
-          operations: [
-            {
-              type: 'borrow_stem',
-              ref_id: ref.id,
-              ref_stem: stem,
-              ref_start: 0,
-              ref_end: Number(actualLen.toFixed(2)),
-              target_start: Number(clampedStart.toFixed(2)),
-              target_end: Number(end.toFixed(2)),
-              match_bpm: true,
-              match_key: stem !== 'drums',
-              gain_db: 0,
-            },
-          ],
-        });
+        const updated = await apiCreateEdit(targetProjectId, payload);
         await refreshProjectList();
         if (activeProjectIdRef.current !== targetProjectId) return;
         setCurrentProject(updated);
         setAbMode('remix');
-        showToast('success', `Added "${shortTitle}" (${stemLabel}) to Sound Layer!`);
+        const labelNote = opts.label ? `"${opts.label}"` : `(${stemLabel})`;
+        showToast('success', `Added "${shortTitle}" ${labelNote} to Sound Layer!`);
       } catch (err) {
         showToast('error', err instanceof Error ? err.message : 'Could not add reference layer.');
         throw err;
       }
     },
     [activeProjectIdRef, currentProject?.main_track, playheadRef, refreshProjectList, selection, setAbMode, setCurrentProject, showToast]
-  );
+  ) as AddReferenceLayerFn;
 
   const runHistoryAction = useCallback(
     async (action: (id: string) => Promise<ProjectState>, fallbackErr: string) => {
@@ -259,6 +235,7 @@ export function useEditActions({
     exportingLabel,
     createEdit,
     updateEdit,
+    duplicateEdit,
     deleteEdit,
     addSfxLayer,
     addReferenceLayer,

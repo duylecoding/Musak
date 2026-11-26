@@ -33,6 +33,7 @@ export function usePlaybackEngine({
   const loopSelectionRef = useRef(loopSelection);
   const durationRef = useRef(trackDuration);
   const pendingRestoreRef = useRef<{ time: number; shouldPlay: boolean } | null>(null);
+  const mixSessionRef = useRef(0);
   const stemSessionRef = useRef(0);
   const isStemPreviewRef = useRef(false);
 
@@ -41,11 +42,13 @@ export function usePlaybackEngine({
   durationRef.current = trackDuration;
 
   const stopFromEnded = useCallback(() => { isPlayingRef.current = false; setIsPlaying(false); }, []);
-  const stems = useStemAudio(project, stemsReady, isStemPreviewRef, stopFromEnded);
+  const {
+    stemChannels, stemAudiosRef, teardownStemAudio, ensureStemGraph, updateStemChannel, resetStemChannels,
+  } = useStemAudio(project, stemsReady, isStemPreviewRef, stopFromEnded);
 
   const isStemPreviewActive = useMemo(
-    () => stemsReady && Object.values(stems.stemChannels).some((c) => c.muted || c.solo || c.volume !== 100),
-    [stemsReady, stems.stemChannels]
+    () => stemsReady && Object.values(stemChannels).some((c) => c.muted || c.solo || c.volume !== 100),
+    [stemsReady, stemChannels]
   );
   const prevStemPreviewRef = useRef(isStemPreviewActive);
   isStemPreviewRef.current = isStemPreviewActive;
@@ -65,22 +68,24 @@ export function usePlaybackEngine({
   }, [playheadRef, playheadLineRef, playheadDiamondRef]);
 
   const teardownMixAudio = useCallback(() => {
+    mixSessionRef.current += 1;
+    pendingRestoreRef.current = null;
     disposeAudioElement(mixAudioRef.current);
     mixAudioRef.current = null;
     loadedMixUrlRef.current = null;
   }, []);
 
   useEffect(() => {
-    stems.resetStemChannels();
+    resetStemChannels();
     updatePlayheadVisual(0);
     setDisplayTime(0);
     setAudioDuration(0);
     setAudioError(null);
-  }, [project?.id, mainTrack?.id, stems.resetStemChannels, updatePlayheadVisual]);
+  }, [project?.id, mainTrack?.id, resetStemChannels, updatePlayheadVisual]);
 
   useEffect(() => {
     teardownMixAudio();
-    stems.teardownStemAudio();
+    teardownStemAudio();
     stopFromEnded();
     if (!project || !mainTrack) return;
 
@@ -100,23 +105,39 @@ export function usePlaybackEngine({
       updatePlayheadVisual(clamped);
       setDisplayTime(clamped);
       if (restore.shouldPlay && !isStemPreviewRef.current) {
-        audio.play().then(() => { isPlayingRef.current = true; setIsPlaying(true); }).catch(stopFromEnded);
+        const session = ++mixSessionRef.current;
+        audio.play()
+          .then(() => {
+            if (mixSessionRef.current !== session) { audio.pause(); return; }
+            isPlayingRef.current = true;
+            setIsPlaying(true);
+          })
+          .catch(() => { if (mixSessionRef.current === session) stopFromEnded(); });
       }
     };
-    const onError = () => { if (loadedMixUrlRef.current) { setLoadingAudio(false); setAudioError('Could not stream audio from backend.'); stopFromEnded(); } };
+    const onPlaying = () => {
+      pendingRestoreRef.current = null;
+      setLoadingAudio(false);
+    };
+    const onError = () => {
+      pendingRestoreRef.current = null;
+      if (loadedMixUrlRef.current) { setLoadingAudio(false); setAudioError('Could not stream audio from backend.'); stopFromEnded(); }
+    };
     const onEnded = () => { if (!isStemPreviewRef.current) stopFromEnded(); };
 
     audio.addEventListener('loadedmetadata', onLoadedMeta);
+    audio.addEventListener('playing', onPlaying);
     audio.addEventListener('error', onError);
     audio.addEventListener('ended', onEnded);
     return () => {
       audio.removeEventListener('loadedmetadata', onLoadedMeta);
+      audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('error', onError);
       audio.removeEventListener('ended', onEnded);
       teardownMixAudio();
-      stems.teardownStemAudio();
+      teardownStemAudio();
     };
-  }, [project?.id, mainTrack?.id, stopFromEnded, stems.teardownStemAudio, teardownMixAudio, updatePlayheadVisual]);
+  }, [project?.id, mainTrack?.id, stopFromEnded, teardownStemAudio, teardownMixAudio, updatePlayheadVisual]);
 
   useEffect(() => {
     const audio = mixAudioRef.current;
@@ -135,28 +156,33 @@ export function usePlaybackEngine({
   const seekToTime = useCallback((rawTime: number) => {
     const dur = durationRef.current;
     const clamped = Math.max(0, dur > 0 ? Math.min(rawTime, dur - 0.02) : rawTime);
+    if (pendingRestoreRef.current) pendingRestoreRef.current.time = clamped;
     updatePlayheadVisual(clamped);
     setDisplayTime(clamped);
-    for (const a of [mixAudioRef.current, ...Object.values(stems.stemAudiosRef.current)]) {
+    for (const a of [mixAudioRef.current, ...Object.values(stemAudiosRef.current)]) {
       if (a && a.readyState >= 1) { try { a.currentTime = clamped; } catch { /* ignore */ } }
     }
-  }, [stems.stemAudiosRef, updatePlayheadVisual]);
+  }, [stemAudiosRef, updatePlayheadVisual]);
 
   const pausePlayback = useCallback(() => {
+    mixSessionRef.current += 1;
     stemSessionRef.current += 1;
+    pendingRestoreRef.current = null;
     mixAudioRef.current?.pause();
-    Object.values(stems.stemAudiosRef.current).forEach((a) => a?.pause());
+    Object.values(stemAudiosRef.current).forEach((a) => a?.pause());
     stopFromEnded();
-  }, [stems.stemAudiosRef, stopFromEnded]);
+  }, [stemAudiosRef, stopFromEnded]);
 
   const startPlayback = useCallback(async (startAt?: number) => {
     const t = startAt ?? currentTimeRef.current;
     if (startAt !== undefined) { updatePlayheadVisual(t); setDisplayTime(t); }
-    const stemEls = Object.values(stems.stemAudiosRef.current).filter((a): a is HTMLAudioElement => Boolean(a));
+    const stemEls = Object.values(stemAudiosRef.current).filter((a): a is HTMLAudioElement => Boolean(a));
     if (isStemPreviewRef.current && stemEls.length > 0) {
+      mixSessionRef.current += 1;
+      pendingRestoreRef.current = null;
       mixAudioRef.current?.pause();
       const session = ++stemSessionRef.current;
-      await stems.ensureStemGraph();
+      await ensureStemGraph();
       await Promise.all(stemEls.map((a) => waitForMetadata(a)));
       if (stemSessionRef.current !== session) return;
       stemEls.forEach((a) => { try { a.currentTime = t; } catch { /* ignore */ } });
@@ -170,13 +196,18 @@ export function usePlaybackEngine({
     stemEls.forEach((a) => a.pause());
     const audio = mixAudioRef.current;
     if (!audio) return;
+    const session = ++mixSessionRef.current;
+    pendingRestoreRef.current = null;
     try {
       await waitForMetadata(audio);
+      if (mixSessionRef.current !== session) return;
+      setLoadingAudio(false);
       if (audio.readyState >= 1) audio.currentTime = t;
       await audio.play();
+      if (mixSessionRef.current !== session) { audio.pause(); return; }
       isPlayingRef.current = true; setIsPlaying(true);
-    } catch { stopFromEnded(); }
-  }, [pausePlayback, stems, stopFromEnded, updatePlayheadVisual]);
+    } catch { if (mixSessionRef.current === session) stopFromEnded(); }
+  }, [ensureStemGraph, pausePlayback, stemAudiosRef, stopFromEnded, updatePlayheadVisual]);
 
   useEffect(() => {
     const prev = prevStemPreviewRef.current;
@@ -200,7 +231,7 @@ export function usePlaybackEngine({
       const shouldSync = now - lastSync > 150;
       if (shouldSync) lastSync = now;
       const activeTime = isStemPreviewRef.current
-        ? getActiveStemTime(stems.stemAudiosRef.current, currentTimeRef.current, shouldSync)
+        ? getActiveStemTime(stemAudiosRef.current, currentTimeRef.current, shouldSync)
         : (mixAudioRef.current?.currentTime ?? currentTimeRef.current);
       const sel = selectionRef.current;
       if (loopSelectionRef.current && sel && sel.end > sel.start && activeTime >= sel.end) seekToTime(sel.start);
@@ -209,7 +240,7 @@ export function usePlaybackEngine({
     };
     rafId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(rafId);
-  }, [isPlaying, seekToTime, stems.stemAudiosRef, updatePlayheadVisual]);
+  }, [isPlaying, seekToTime, stemAudiosRef, updatePlayheadVisual]);
 
   const handlePlayPause = useCallback(() => {
     if (!mainTrack) return;
@@ -236,7 +267,7 @@ export function usePlaybackEngine({
 
   return {
     isPlaying, loopSelection, setLoopSelection, displayTime, audioDuration, loadingAudio, audioError,
-    setAudioError, stemChannels: stems.stemChannels, isStemPreviewActive, currentTimeRef, seekToTime,
-    handlePlayPause, handleStop, updateStemChannel: stems.updateStemChannel, resetStemChannels: stems.resetStemChannels,
+    setAudioError, stemChannels, isStemPreviewActive, currentTimeRef, seekToTime,
+    handlePlayPause, handleStop, updateStemChannel, resetStemChannels,
   };
 }

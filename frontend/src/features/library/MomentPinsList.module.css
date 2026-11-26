@@ -146,6 +146,27 @@
 
 .momentChatBtn:hover { background-color: var(--accent-primary); color: var(--text-primary); }
 
+.momentDropBtn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background-color: var(--accent-sky-soft);
+  color: var(--accent-sky);
+  cursor: pointer;
+}
+
+.momentDropBtn:hover:not(:disabled) {
+  background-color: var(--accent-sky);
+  color: var(--text-primary);
+}
+
+.momentDropBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .momentDeleteBtn {
   border: none;
   background: transparent;

@@ -90,6 +90,16 @@ describe('timelineMath', () => {
       classifyEditLane(makeEdit([{ type: 'stem_gain', stems: ['vocals', 'drums'], gain_db: -3 }]))
     ).toBe('master');
     expect(classifyEditLane(makeEdit([{ type: 'filter_sweep' }]))).toBe('master');
+    expect(classifyEditLane(makeEdit([{ type: 'cut_section' }]))).toBe('master');
+    expect(classifyEditLane(makeEdit([{ type: 'cut_section', stems: ['drums'] }]))).toBe('master');
+    expect(classifyEditLane(makeEdit([{ type: 'repeat_section', repeat_count: 2 }]))).toBe('master');
+    expect(classifyEditLane(makeEdit([{ type: 'beat_repeat', stems: ['drums'], division_beats: 0.5 }]))).toBe('drums');
+    expect(classifyEditLane(makeEdit([{ type: 'beat_repeat', stems: ['all'], division_beats: 0.5 }]))).toBe('master');
+    expect(classifyEditLane(makeEdit([{ type: 'beat_repeat', division_beats: 0.5 }]))).toBe('master');
+    expect(classifyEditLane(makeEdit([{ type: 'vinyl_brake', stems: ['vocals'] }]))).toBe('vocals');
+    expect(
+      classifyEditLane(makeEdit([{ type: 'vinyl_brake', stems: ['vocals', 'drums', 'bass', 'other'] }]))
+    ).toBe('master');
   });
 
   it('extracts gain_db and detects gain-capable operations', () => {

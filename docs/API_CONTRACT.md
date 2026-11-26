@@ -1,4 +1,4 @@
-# Musak Internal API Contract (v0.3)
+# Musak Internal API Contract (v0.4)
 
 Base URL: `http://127.0.0.1:8765`
 CORS: Allow `http://localhost:5173`, `http://127.0.0.1:5173`, `file://`, and `null` (`allow_credentials=False`, `expose_headers=["Content-Disposition"]`).
@@ -45,6 +45,13 @@ interface SfxItem {
   preview_url: string;
 }
 
+interface CueMarker {
+  id: string;
+  label: string;
+  time: number;
+  color: string;
+}
+
 interface EditOperation {
   type:
     | "stem_gain"
@@ -55,13 +62,20 @@ interface EditOperation {
     | "bass_boost"
     | "borrow_stem"
     | "tempo_pitch"
-    | "add_sfx";
+    | "add_sfx"
+    | "cut_section"
+    | "repeat_section"
+    | "beat_repeat"
+    | "vinyl_brake";
   stems?: string[];
   start?: number;
   end?: number;
   snap_to_beat?: boolean;
   gain_db?: number;
   fade_ms?: number;
+  fade_in_ms?: number;
+  fade_out_ms?: number;
+  fade_curve?: "in" | "out" | "both";
   mode?: "highpass" | "lowpass";
   start_hz?: number;
   end_hz?: number;
@@ -83,6 +97,7 @@ interface EditOperation {
   replace_main_stems?: string[];
   match_bpm?: boolean;
   match_key?: boolean;
+  loop_to_fit?: boolean;
   speed_rate?: number;
   semitones?: number;
   add_reverb?: boolean;
@@ -90,6 +105,9 @@ interface EditOperation {
   // add_sfx
   sfx_id?: string;
   layer_id?: string;
+  // repeat_section / beat_repeat
+  repeat_count?: number;
+  division_beats?: number;
 }
 ```
 
@@ -99,6 +117,10 @@ interface EditOperation {
 - `POST /api/projects/{project_id}/main-track/from-reference/{ref_id}` -> promotes ref (reuses stems if ready, else auto-starts Demucs) -> `ProjectState`
 - `POST /api/projects/{project_id}/main-track/separate` -> manually triggers/retries background Demucs -> `ProjectState`
 - `POST /api/projects/{project_id}/main-track/extract-hooks` -> Gemini extracts clickable lyric/hook cues -> `ProjectState`
+- `PATCH /api/projects/{project_id}/main-track/meta` -> Body `{ bpm?: number, key?: string }` -> updates BPM (rebuilding beat grid) and/or musical key -> `ProjectState`
+- `POST /api/projects/{project_id}/main-track/cues` -> Body `{ label: string, time: number, color?: string }` -> drops manual cue marker -> `ProjectState`
+- `PATCH /api/projects/{project_id}/main-track/cues/{cue_id}` -> Body `{ label?: string, time?: number, color?: string }` -> updates cue marker -> `ProjectState`
+- `DELETE /api/projects/{project_id}/main-track/cues/{cue_id}` -> removes cue marker -> `ProjectState`
 - `GET /api/projects/{project_id}/peaks?buckets=400` -> `WaveformPeaksResponse` (fast normalized waveform peaks for multi-lane canvas rendering)
 - `GET /api/projects/{project_id}/audio/main` -> audio stream (`Cache-Control: no-store`)
 - `GET /api/projects/{project_id}/audio/rendered` -> rendered remix stream (`Cache-Control: no-store`)
@@ -119,15 +141,16 @@ interface EditOperation {
 - `POST /api/projects/{project_id}/references/{ref_id}/auto-tag` -> `ProjectState`
 - `POST /api/projects/{project_id}/references/{ref_id}/extract-stems` -> `ProjectState`
 - `GET /api/projects/{project_id}/references/{ref_id}/audio` -> audio stream
-- `POST /api/projects/{project_id}/mashup` -> Body `{ ref_id, mode, start?, end? }` -> `ProjectState`
+- `POST /api/projects/{project_id}/mashup` -> Body `{ ref_id, mode, start?, end?, ref_start?, ref_end? }` -> `ProjectState`
 
 ## 6. Edits, Drag/Resize Updates, Proposal Tuning & History
 - `POST /api/projects/{project_id}/edits` -> Body `{ title, description, start, end, operations }` -> `ProjectState`
 - `POST /api/projects/{project_id}/edits/apply-proposal/{proposal_id}` -> `ProjectState`
 - `POST /api/projects/{project_id}/proposals/{proposal_id}/tune` -> Body `{ intensity?, keep_vocals_clear?, shift_beats? }` -> `ProjectState`
+- `POST /api/projects/{project_id}/edits/{edit_id}/duplicate` -> Body `{ start?: number }` -> clones edit block cleanly to target start (or immediately after original) -> `ProjectState`
 - `PATCH /api/projects/{project_id}/edits/{edit_id}`
-  - Body: `{ enabled?: boolean, start?: number, end?: number, title?: string, gain_db?: number }`
-  - Allows toggling on/off OR dragging/resizing/re-leveling any block directly on the timeline lanes; updates operation timestamps/gain, re-renders remix, returns `ProjectState`.
+  - Body: `{ enabled?, start?, end?, title?, gain_db?, fade_in_ms?, fade_out_ms?, fade_curve?, mode?, start_hz?, end_hz?, room_size?, wet_level?, delay_beats?, feedback?, mix?, drive_db?, cutoff_hz?, low_cut_hz?, high_cut_hz?, ref_start?, ref_end?, replace_main_stems?, match_bpm?, match_key?, loop_to_fit?, division_beats?, repeat_count? }`
+  - Allows toggling, dragging/resizing, renaming, and tweaking FX / fade / borrow parameters directly on timeline blocks; re-renders remix, returns `ProjectState`.
 - `DELETE /api/projects/{project_id}/edits/{edit_id}` -> `ProjectState`
 - `POST /api/projects/{project_id}/undo` -> `ProjectState`
 - `POST /api/projects/{project_id}/redo` -> `ProjectState`

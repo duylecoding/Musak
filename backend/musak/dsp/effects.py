@@ -9,7 +9,13 @@ import numpy as np
 import pedalboard as pb
 from scipy.signal import butter, sosfilt
 
-from musak.dsp.utils import _apply_tail_fade_out, _cosine_fade_mask, _run_pedalboard, snap_range_to_beats
+from musak.dsp.utils import (
+    _apply_tail_fade_out,
+    _asymmetric_cosine_mask,
+    _cosine_fade_mask,
+    _run_pedalboard,
+    snap_range_to_beats,
+)
 from musak.models import EditOperation
 from musak.sfx import get_sfx_item, synthesize_sfx
 
@@ -60,16 +66,32 @@ def _apply_wet_throw(
 
 
 def _apply_stem_gain(audio: np.ndarray, sr: int, s_idx: int, e_idx: int, op: EditOperation) -> np.ndarray:
-    """Apply smooth dB gain change over `[s_idx, e_idx]`."""
+    """Apply smooth dB gain change or fade-in/fade-out curve over `[s_idx, e_idx]`."""
     length = e_idx - s_idx
     if length <= 0:
         return audio
     gain_db = float(op.gain_db if op.gain_db is not None else 0.0)
-    fade_ms = float(op.fade_ms if op.fade_ms is not None else 30.0)
     target_gain = 0.0 if gain_db <= -60.0 else float(10.0 ** (gain_db / 20.0))
-    mask = _cosine_fade_mask(length, int(max(1.0, fade_ms) * sr / 1000.0))
     out = audio.copy()
-    out[s_idx:e_idx] *= 1.0 + mask * (target_gain - 1.0)
+
+    if op.fade_curve == "in":
+        ramp = 0.5 * (1.0 - np.cos(np.linspace(0.0, math.pi, length, dtype=np.float32)))
+        out[s_idx:e_idx] *= (ramp * target_gain)[:, np.newaxis]
+        return out
+    if op.fade_curve == "out":
+        start_gain = target_gain if (op.gain_db is not None and op.gain_db > -60.0) else 1.0
+        ramp = 0.5 * (1.0 + np.cos(np.linspace(0.0, math.pi, length, dtype=np.float32)))
+        out[s_idx:e_idx] *= (ramp * start_gain)[:, np.newaxis]
+        return out
+
+    default_ms = float(op.fade_ms if op.fade_ms is not None else 30.0)
+    fi_ms = float(np.clip(op.fade_in_ms if op.fade_in_ms is not None else default_ms, 0.0, 4000.0))
+    fo_ms = float(np.clip(op.fade_out_ms if op.fade_out_ms is not None else default_ms, 0.0, 4000.0))
+    mask = _asymmetric_cosine_mask(length, int(round(fi_ms * sr / 1000.0)), int(round(fo_ms * sr / 1000.0)))
+    if op.fade_curve == "both":
+        out[s_idx:e_idx] *= mask * target_gain
+    else:
+        out[s_idx:e_idx] *= 1.0 + mask * (target_gain - 1.0)
     return out
 
 
@@ -199,7 +221,9 @@ def _build_sfx_overlay(
     fitted[:copy_len] = sfx_audio[:copy_len]
     gain_db = float(op.gain_db if op.gain_db is not None else 0.0)
     fitted *= 0.0 if gain_db <= -60.0 else float(10.0 ** (gain_db / 20.0))
-    fitted *= _cosine_fade_mask(length, min(int(0.010 * sr), length // 2))
+    fi_ms = float(np.clip(op.fade_in_ms if op.fade_in_ms is not None else 10.0, 0.0, 4000.0))
+    fo_ms = float(np.clip(op.fade_out_ms if op.fade_out_ms is not None else 10.0, 0.0, 4000.0))
+    fitted *= _asymmetric_cosine_mask(length, int(round(fi_ms * sr / 1000.0)), int(round(fo_ms * sr / 1000.0)))
 
     overlay = np.zeros((total_samples, 2), dtype=np.float32)
     overlay[s_idx:e_idx] = fitted

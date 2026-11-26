@@ -50,6 +50,56 @@ export function extractMainTrackHooks(projectId: string): Promise<ProjectState> 
   );
 }
 
+export function updateMainTrackMeta(
+  projectId: string,
+  payload: { bpm?: number; key?: string }
+): Promise<ProjectState> {
+  return requestJson<ProjectState>(
+    `/api/projects/${encodeURIComponent(projectId)}/main-track/meta`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function addCueMarker(
+  projectId: string,
+  payload: { label: string; time: number; color?: string }
+): Promise<ProjectState> {
+  return requestJson<ProjectState>(
+    `/api/projects/${encodeURIComponent(projectId)}/main-track/cues`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function updateCueMarker(
+  projectId: string,
+  cueId: string,
+  payload: { label?: string; time?: number; color?: string }
+): Promise<ProjectState> {
+  return requestJson<ProjectState>(
+    `/api/projects/${encodeURIComponent(projectId)}/main-track/cues/${encodeURIComponent(cueId)}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function deleteCueMarker(projectId: string, cueId: string): Promise<ProjectState> {
+  return requestJson<ProjectState>(
+    `/api/projects/${encodeURIComponent(projectId)}/main-track/cues/${encodeURIComponent(cueId)}`,
+    { method: 'DELETE' }
+  );
+}
+
 export function getProjectPeaks(projectId: string, buckets = 500): Promise<WaveformPeaksResponse> {
   return requestJson<WaveformPeaksResponse>(
     `/api/projects/${encodeURIComponent(projectId)}/peaks?buckets=${encodeURIComponent(String(buckets))}`

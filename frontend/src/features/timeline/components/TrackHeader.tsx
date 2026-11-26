@@ -17,12 +17,15 @@ export interface TrackHeaderProps {
   stemDevice?: StemDevice;
   speedPitchOpen: boolean;
   hooksOpen: boolean;
+  bpmKeyOpen: boolean;
   speedPitchBtnRef: React.RefObject<HTMLDivElement>;
   hooksBtnRef: React.RefObject<HTMLDivElement>;
+  bpmKeyBtnRef: React.RefObject<HTMLDivElement>;
   errorMessage: string | null;
   onDismissError: () => void;
   onToggleSpeedPitch: () => void;
   onToggleHooks: () => void;
+  onToggleBpmKey: () => void;
   onBrowseReplace: () => void;
   onSubmitYoutubeSwap: (url: string) => Promise<void>;
   onSeparateStems: () => void;
@@ -30,8 +33,10 @@ export interface TrackHeaderProps {
 
 export const TrackHeader: React.FC<TrackHeaderProps> = ({
   mainTrack, anyMainBusy, uploading, loadingYoutube, stemsReady, stemsProcessing, stemsError,
-  cudaAvailable, stemDevice = 'auto', speedPitchOpen, hooksOpen, speedPitchBtnRef, hooksBtnRef,
-  errorMessage, onDismissError, onToggleSpeedPitch, onToggleHooks, onBrowseReplace, onSubmitYoutubeSwap, onSeparateStems,
+  cudaAvailable, stemDevice = 'auto', speedPitchOpen, hooksOpen, bpmKeyOpen,
+  speedPitchBtnRef, hooksBtnRef, bpmKeyBtnRef,
+  errorMessage, onDismissError, onToggleSpeedPitch, onToggleHooks, onToggleBpmKey,
+  onBrowseReplace, onSubmitYoutubeSwap, onSeparateStems,
 }) => {
   const [ytSwapOpen, setYtSwapOpen] = useState(false);
   const [ytSwapInput, setYtSwapInput] = useState('');
@@ -49,9 +54,13 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({
     e.preventDefault();
     const url = ytSwapInput.trim();
     if (!url || anyMainBusy) return;
-    await onSubmitYoutubeSwap(url);
-    setYtSwapInput('');
-    setYtSwapOpen(false);
+    try {
+      await onSubmitYoutubeSwap(url);
+      setYtSwapInput('');
+      setYtSwapOpen(false);
+    } catch {
+      /* uploadError banner displayed by TrackHeader */
+    }
   };
 
   return (
@@ -61,12 +70,26 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({
           <AudioLines className={styles.trackIcon} />
           <h1 className={styles.trackTitle} title={mainTrack.name}>{mainTrack.name}</h1>
 
-          <HelpTip title="BPM (Tempo)" content="Beats per minute — locks Beat Snap, transitions, and echoes to the rhythm.">
-            <span className={styles.metaPill}>{formatBpm(mainTrack.bpm) || '— BPM'}</span>
-          </HelpTip>
-          <HelpTip title="Musical Key" content="Detected scale so mashups and borrowed clips stay in tune.">
-            <span className={styles.metaPill}>{mainTrack.key || '—'}</span>
-          </HelpTip>
+          <div ref={bpmKeyBtnRef} className={styles.metaGroup}>
+            <HelpTip title="BPM (Tempo)" content="Click to halve (÷2), double (×2), or manually override detected BPM.">
+              <button
+                type="button"
+                onClick={onToggleBpmKey}
+                className={bpmKeyOpen ? `${styles.metaPill} ${styles.metaPillActive}` : styles.metaPill}
+              >
+                {formatBpm(mainTrack.bpm) || '— BPM'}
+              </button>
+            </HelpTip>
+            <HelpTip title="Musical Key" content="Click to override musical key for mashup matching.">
+              <button
+                type="button"
+                onClick={onToggleBpmKey}
+                className={bpmKeyOpen ? `${styles.metaPill} ${styles.metaPillActive}` : styles.metaPill}
+              >
+                {mainTrack.key || '—'}
+              </button>
+            </HelpTip>
+          </div>
 
           <div className={styles.triggerWrap} ref={speedPitchBtnRef}>
             <HelpTip content="Make Slowed + Reverb, Sped Up, or Deep Pitch edits in one tap.">
