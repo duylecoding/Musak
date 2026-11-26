@@ -134,6 +134,7 @@ describe('SoundsTab', () => {
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
     expect(audioEl?.getAttribute('src')).toContain('/api/sfx/riser-sweep-1/preview');
     expect(audioEl?.getAttribute('src')).toContain('bpm=128');
+    expect(audioEl?.getAttribute('src')).toContain('key=Am');
     expect(screen.getByRole('button', { name: /stop/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /stop/i }));

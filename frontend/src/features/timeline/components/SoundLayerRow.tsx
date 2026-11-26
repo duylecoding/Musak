@@ -18,7 +18,7 @@ export interface SoundLayerRowProps {
   onInspectClip: (edit: EditBlock, el: HTMLElement) => void;
 }
 
-export const SoundLayerRow: React.FC<SoundLayerRowProps> = ({
+export const SoundLayerRow: React.FC<SoundLayerRowProps> = React.memo(({
   edit, index, trackDuration, clipDragPreview, laneRef,
   onToggleEnabled, onDelete, onClipPointerDown, onInspectClip,
 }) => {
@@ -63,7 +63,7 @@ export const SoundLayerRow: React.FC<SoundLayerRowProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export interface AddSoundLayerRowProps {
   buttonRef: React.RefObject<HTMLButtonElement>;

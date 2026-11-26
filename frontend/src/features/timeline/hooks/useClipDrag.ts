@@ -42,17 +42,28 @@ export function useClipDrag({
       e.stopPropagation();
       if (e.button !== 0 || trackDuration <= 0 || !laneEl) return;
 
-      const clipEl = e.currentTarget;
+      const clipEl = (e.currentTarget.closest('[role="button"]') as HTMLDivElement | null) ?? e.currentTarget;
       const laneRect = laneEl.getBoundingClientRect();
       const downX = e.clientX;
       const pxPerSec = laneRect.width / Math.max(0.1, trackDuration);
       const origStart = edit.start;
       const origEnd = edit.end;
+      const origLeftStyle = clipEl.style.left;
+      const origWidthStyle = clipEl.style.width;
       let moved = false;
       let latestStart = origStart;
       let latestEnd = origEnd;
+      let rafId = 0;
 
       clipEl.setPointerCapture?.(e.pointerId);
+
+      const applyDomPreview = () => {
+        rafId = 0;
+        const leftPct = Math.max(0, Math.min(100, (latestStart / trackDuration) * 100));
+        const widthPct = Math.max(1.2, Math.min(100 - leftPct, ((latestEnd - latestStart) / trackDuration) * 100));
+        clipEl.style.left = `${leftPct}%`;
+        clipEl.style.width = `${widthPct}%`;
+      };
 
       const onMove = (ev: PointerEvent) => {
         const dx = ev.clientX - downX;
@@ -82,10 +93,11 @@ export function useClipDrag({
 
         latestStart = range.start;
         latestEnd = range.end;
-        setClipDragPreview({ editId: edit.id, start: latestStart, end: latestEnd });
+        if (!rafId) rafId = window.requestAnimationFrame(applyDomPreview);
       };
 
       const onUp = (ev: PointerEvent) => {
+        if (rafId) { window.cancelAnimationFrame(rafId); rafId = 0; }
         try { clipEl.releasePointerCapture?.(ev.pointerId); } catch { /* ignore */ }
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
@@ -100,12 +112,19 @@ export function useClipDrag({
           moved &&
           (Math.abs(latestStart - origStart) > 0.02 || Math.abs(latestEnd - origEnd) > 0.02)
         ) {
+          applyDomPreview();
+          setClipDragPreview({ editId: edit.id, start: latestStart, end: latestEnd });
           void onUpdateEdit(edit.id, { start: latestStart, end: latestEnd })
-            .catch(() => {})
+            .catch(() => {
+              clipEl.style.left = origLeftStyle;
+              clipEl.style.width = origWidthStyle;
+            })
             .finally(() => {
               setClipDragPreview((cur) => (cur?.editId === edit.id ? null : cur));
             });
         } else {
+          clipEl.style.left = origLeftStyle;
+          clipEl.style.width = origWidthStyle;
           setClipDragPreview(null);
         }
       };

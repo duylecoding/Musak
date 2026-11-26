@@ -34,6 +34,12 @@
 }
 .headerIcon { width: 14px; height: 14px; color: var(--accent-primary); }
 .headerSubtitle { margin: 2px 0 0; font-size: 11px; color: var(--text-muted); }
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
 .copilotBadge {
   padding: 2px 8px;
   border-radius: var(--radius-pill);
@@ -42,6 +48,18 @@
   background-color: var(--accent-primary-soft);
   color: var(--text-accent);
   border: 1px solid var(--border-tooltip);
+}
+.hidePanelBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+.hidePanelBtn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
 }
 
 .apiBanner {

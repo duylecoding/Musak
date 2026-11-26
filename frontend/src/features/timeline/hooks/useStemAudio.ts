@@ -44,7 +44,7 @@ export function getActiveStemTime(
   if (shouldSyncFollowers) {
     for (let i = 1; i < els.length; i++) {
       const f = els[i];
-      if (!f.paused && Math.abs(f.currentTime - leaderTime) > 0.1) {
+      if (!f.paused && Math.abs(f.currentTime - leaderTime) > 0.16) {
         try { f.currentTime = leaderTime; } catch { /* ignore */ }
       }
     }
@@ -61,6 +61,7 @@ export function disposeAudioElement(audio: HTMLAudioElement | null | undefined):
 
 export function useStemAudio(
   project: ProjectState | null,
+  abMode: 'original' | 'remix',
   stemsReady: boolean,
   isStemPreviewRef: React.MutableRefObject<boolean>,
   onEndedAll: () => void
@@ -71,6 +72,8 @@ export function useStemAudio(
   const stemCtxRef = useRef<AudioContext | null>(null);
   const stemChannelsRef = useRef(stemChannels);
   stemChannelsRef.current = stemChannels;
+  const abModeRef = useRef(abMode);
+  abModeRef.current = abMode;
 
   const teardownStemAudio = useCallback(() => {
     Object.values(stemAudiosRef.current).forEach(disposeAudioElement);
@@ -100,8 +103,11 @@ export function useStemAudio(
     for (const lane of STEM_LANES) {
       const a = new Audio();
       a.crossOrigin = 'anonymous';
-      a.preload = 'auto';
-      a.src = getStemAudioUrl(project, lane.id);
+      a.preload = 'metadata';
+      const gain = effectiveStemGain(lane.id, stemChannelsRef.current);
+      a.volume = Math.min(1, gain);
+      a.muted = gain === 0;
+      a.src = getStemAudioUrl(project, lane.id, abModeRef.current);
       created[lane.id] = a;
     }
     stemAudiosRef.current = created;
@@ -118,6 +124,32 @@ export function useStemAudio(
     };
   }, [project?.id, project?.main_track?.id, stemsReady, isStemPreviewRef, onEndedAll, teardownStemAudio]);
 
+  // Swap stem element URLs in-place (preserving WebAudio graph) when remix renders or A/B flips
+  useEffect(() => {
+    if (!project || !project.main_track || !stemsReady) return;
+    const els = Object.entries(stemAudiosRef.current) as [InstrumentStem, HTMLAudioElement][];
+    if (!els.length) return;
+    let changed = false;
+    const wasPlaying = isStemPreviewRef.current && els.some(([, a]) => !a.paused);
+    const savedTime = els[0]?.[1]?.currentTime ?? 0;
+    for (const [stem, a] of els) {
+      const nextUrl = getStemAudioUrl(project, stem, abMode);
+      if (a.src !== nextUrl) {
+        if (wasPlaying) a.pause();
+        a.src = nextUrl;
+        a.load();
+        changed = true;
+      }
+    }
+    if (changed && wasPlaying) {
+      void Promise.all(els.map(([, a]) => waitForMetadata(a))).then(() => {
+        if (!isStemPreviewRef.current) return;
+        els.forEach(([, a]) => { try { a.currentTime = savedTime; } catch { /* ignore */ } });
+        void Promise.all(els.map(([, a]) => a.play())).catch(() => {});
+      });
+    }
+  }, [project, abMode, stemsReady, isStemPreviewRef]);
+
   const ensureStemGraph = useCallback(async () => {
     if (stemCtxRef.current) {
       if (stemCtxRef.current.state === 'suspended') await stemCtxRef.current.resume().catch(() => {});
@@ -132,10 +164,12 @@ export function useStemAudio(
       if (ctx.state === 'suspended') await ctx.resume();
       const nodes: Partial<Record<InstrumentStem, GainNode>> = {};
       for (const [stem, audio] of entries) {
+        const gain = effectiveStemGain(stem, stemChannelsRef.current);
         audio.volume = 1;
+        audio.muted = gain === 0;
         const src = ctx.createMediaElementSource(audio);
         const gainNode = ctx.createGain();
-        gainNode.gain.value = effectiveStemGain(stem, stemChannelsRef.current);
+        gainNode.gain.value = gain;
         src.connect(gainNode);
         gainNode.connect(ctx.destination);
         nodes[stem] = gainNode;

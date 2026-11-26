@@ -123,13 +123,21 @@ export async function listSfx(): Promise<SfxItem[]> {
   return data.items;
 }
 
-export function getSfxPreviewUrl(sfxId: string, bpm?: number, duration?: number): string {
+export function getSfxPreviewUrl(
+  sfxId: string,
+  bpm?: number,
+  duration?: number,
+  key?: string
+): string {
   const url = new URL(resolveApiUrl(`/api/sfx/${encodeURIComponent(sfxId)}/preview`));
   if (bpm && Number.isFinite(bpm) && bpm > 0) {
     url.searchParams.set('bpm', String(Math.round(bpm)));
   }
   if (duration && Number.isFinite(duration) && duration > 0) {
     url.searchParams.set('duration', String(Number(duration.toFixed(2))));
+  }
+  if (key && key.trim()) {
+    url.searchParams.set('key', key.trim());
   }
   return url.toString();
 }

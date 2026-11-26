@@ -63,3 +63,16 @@
   - **Deliverables:**
     - Implement `beat_repeat` (stutter `1/2`, `1/4`, `1/8` beat) and real audio `tape_stop` (actually braking the track/stem audio!) in `dsp.py`.
     - Add a **DJ Moves** group in the Floating Bar's FX menu (*Club Buildup*, *Beat Stutter*, *Real Vinyl Stop*, *Echo Freeze*) emitting standard editable blocks.
+
+---
+
+## Live Stress-Test Discoveries (`Ain't In LA → Illenium Vibe`, Zero Gemini)
+
+- [x] **10. BPM-Synced Sidechain Pump (`sidechain_pump`)** (`Small`)
+  - Signature future-bass rhythmic ducking (`1/2 Beat` / `1 Beat`, `depth 0.3–0.85`) with smooth exponential release curve, applied cleanly across stems AND borrowed/SFX layers.
+- [x] **11. Key-Synced Melodic Synth Layers (`supersaw_swell` & `ambient_pad`)** (`Small`)
+  - Key-locked 7-voice detuned stereo supersaw chord swell and warm emotional ambient pad in `sfx.py` synced to `main_track.key`.
+- [x] **12. Stereo Chorus & Width Wash (`stereo_wash`)** (`Small`)
+  - `Pedalboard.Chorus` + mid-side stereo widening (`width 1.0–2.0`, `chorus_mix 0.0–0.8`) for wide emotional vocals and breakdowns.
+- [x] **13. Borrow Layer Auto-Duck Presets, Post-Overlay FX Routing & BPM-Stretch Scaling** (`Small`)
+  - Add `Melody` (`['other']`) and `Drums + Melody` (`['drums', 'other']`) Auto-Duck presets, allow master/all-stem FX (like `sidechain_pump` and sweeps) to process summed borrowed/SFX overlays, and scale borrowed clip duration by `effective_ref_bpm / main_bpm` when `match_bpm` is enabled.

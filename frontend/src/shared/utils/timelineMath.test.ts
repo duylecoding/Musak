@@ -100,6 +100,18 @@ describe('timelineMath', () => {
     expect(
       classifyEditLane(makeEdit([{ type: 'vinyl_brake', stems: ['vocals', 'drums', 'bass', 'other'] }]))
     ).toBe('master');
+    expect(
+      classifyEditLane(makeEdit([{ type: 'sidechain_pump', stems: ['other'], division_beats: 1, depth: 0.7 }]))
+    ).toBe('other');
+    expect(
+      classifyEditLane(makeEdit([{ type: 'sidechain_pump', division_beats: 1, depth: 0.7 }]))
+    ).toBe('master');
+    expect(
+      classifyEditLane(makeEdit([{ type: 'stereo_wash', stems: ['vocals'], width: 1.45, chorus_mix: 0.35 }]))
+    ).toBe('vocals');
+    expect(
+      classifyEditLane(makeEdit([{ type: 'stereo_wash', stems: ['vocals', 'drums', 'bass', 'other'], width: 1.45 }]))
+    ).toBe('master');
   });
 
   it('extracts gain_db and detects gain-capable operations', () => {

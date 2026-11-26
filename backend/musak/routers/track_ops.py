@@ -12,6 +12,7 @@ from fastapi import HTTPException
 
 from musak.audio_analysis import analyze_audio, compute_waveform_peaks
 from musak.config import STEM_NAMES
+from musak.dsp.cache import get_cached_peaks
 from musak.models import ProjectState, WaveformPeaksResponse
 from musak.routers.deps import _install_main_track_from_wav, _safe_unlink, store
 from musak.youtube import canonical_youtube_url, download_youtube_audio, extract_youtube_id, fetch_youtube_metadata
@@ -79,19 +80,23 @@ def build_waveform_peaks(project_id: str, project: ProjectState, buckets: int) -
     if not main_wav.is_file():
         raise HTTPException(status_code=404, detail="Main track audio not found.")
 
-    main_peaks = compute_waveform_peaks(main_wav, buckets=buckets)
+    main_peaks = get_cached_peaks(main_wav, buckets, lambda: compute_waveform_peaks(main_wav, buckets=buckets))
     rendered_peaks: list[float] | None = None
     if project.render_version > 0:
         rendered_wav = store.rendered_audio_path(project_id, project.render_version)
         if rendered_wav.is_file():
-            rendered_peaks = compute_waveform_peaks(rendered_wav, buckets=buckets)
+            rendered_peaks = get_cached_peaks(
+                rendered_wav, buckets, lambda p=rendered_wav: compute_waveform_peaks(p, buckets=buckets)
+            )
 
     stems_peaks: dict[str, list[float]] = {}
     if project.main_track.stems_status == "ready":
         for stem_name in STEM_NAMES:
             stem_path = store.main_stem_path(project_id, stem_name)
             if stem_path.is_file():
-                stems_peaks[stem_name] = compute_waveform_peaks(stem_path, buckets=buckets)
+                stems_peaks[stem_name] = get_cached_peaks(
+                    stem_path, buckets, lambda p=stem_path: compute_waveform_peaks(p, buckets=buckets)
+                )
 
     return WaveformPeaksResponse(
         duration=project.main_track.duration,

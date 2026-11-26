@@ -190,10 +190,14 @@ def stream_rendered_audio(project_id: str) -> FileResponse:
 
 
 @router.get("/api/projects/{project_id}/audio/stem/{stem_name}")
-def stream_stem_audio(project_id: str, stem_name: str) -> FileResponse:
+def stream_stem_audio(project_id: str, stem_name: str, mode: str = "original") -> FileResponse:
     validate_id(project_id, "project_id")
     valid_stem = validate_stem_name(stem_name)
-    store.get_project(project_id)
+    project = store.get_project(project_id)
+    if mode == "remix" and project.render_version > 0:
+        remixed = store.rendered_stem_path(project_id, valid_stem, project.render_version)
+        if remixed.is_file():
+            return _wav_file_response(remixed, remixed.name)
     path = store.main_stem_path(project_id, valid_stem)
     if not path.is_file():
         raise HTTPException(status_code=404, detail=f"Stem '{valid_stem}' has not been generated yet.")

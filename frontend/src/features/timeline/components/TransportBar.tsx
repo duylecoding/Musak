@@ -9,6 +9,7 @@ export interface TransportBarProps {
   loopSelection: boolean;
   hasSelection: boolean;
   displayTime: number;
+  timecodeRef?: React.RefObject<HTMLSpanElement>;
   trackDuration: number;
   loadingAudio: boolean;
   isStemPreviewActive: boolean;
@@ -30,7 +31,7 @@ export interface TransportBarProps {
 }
 
 export const TransportBar: React.FC<TransportBarProps> = ({
-  isPlaying, loopSelection, hasSelection, displayTime, trackDuration, loadingAudio,
+  isPlaying, loopSelection, hasSelection, displayTime, timecodeRef, trackDuration, loadingAudio,
   isStemPreviewActive, bakingMix, abMode, beatSnap, metronomeEnabled = false, zoom,
   onPlayPause, onStop, onToggleLoop, onDropCue, onBakeStemPreview, onResetStems,
   onAbModeChange, onToggleBeatSnap, onToggleMetronome, onZoomChange,
@@ -72,7 +73,7 @@ export const TransportBar: React.FC<TransportBarProps> = ({
       )}
 
       <div className={styles.timecode}>
-        <span>{formatTime(displayTime)}</span>
+        <span ref={timecodeRef}>{formatTime(displayTime)}</span>
         <span className={styles.timeSep}>/</span>
         <span className={styles.timeTotal}>{formatTime(trackDuration)}</span>
       </div>

@@ -154,6 +154,14 @@ def tune_proposal_operations(
         elif op.type == "add_sfx":
             base_g = op.gain_db if op.gain_db is not None else 0.0
             op.gain_db = round(float(np.clip(base_g + (clamped_intensity - 1.0) * 6.0, -24.0, 12.0)), 2)
+        elif op.type == "sidechain_pump":
+            base_depth = op.depth if op.depth is not None else 0.7
+            op.depth = round(float(np.clip(base_depth * clamped_intensity, 0.05, 0.95)), 3)
+        elif op.type == "stereo_wash":
+            base_width = op.width if op.width is not None else 1.45
+            base_mix = op.chorus_mix if op.chorus_mix is not None else 0.35
+            op.width = round(float(np.clip(1.0 + (base_width - 1.0) * clamped_intensity, 0.5, 2.0)), 3)
+            op.chorus_mix = round(float(np.clip(base_mix * clamped_intensity, 0.0, 0.8)), 3)
 
         tuned.append(op)
 

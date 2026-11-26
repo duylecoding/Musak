@@ -43,6 +43,7 @@ export const TimelineWorkspace: React.FC<TimelineWorkspaceProps> = ({ onOpenSett
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const playheadLineRef = useRef<HTMLDivElement>(null);
   const playheadDiamondRef = useRef<HTMLDivElement>(null);
+  const timecodeRef = useRef<HTMLSpanElement>(null);
   const laneRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const speedPitchBtnRef = useRef<HTMLDivElement>(null);
   const hooksBtnRef = useRef<HTMLDivElement>(null);
@@ -53,7 +54,7 @@ export const TimelineWorkspace: React.FC<TimelineWorkspaceProps> = ({ onOpenSett
   const trackDuration = mainTrack?.duration || peaks?.duration || 0;
   const playback = usePlaybackEngine({
     project, abMode: ctx.abMode, selection: ctx.selection, trackDuration,
-    playheadRef: ctx.playheadRef, playheadLineRef, playheadDiamondRef,
+    playheadRef: ctx.playheadRef, playheadLineRef, playheadDiamondRef, timecodeRef,
   });
 
   useMetronome({
@@ -103,7 +104,7 @@ export const TimelineWorkspace: React.FC<TimelineWorkspaceProps> = ({ onOpenSett
     let cancelled = false;
     getProjectPeaks(project.id, 1200).then((res) => { if (!cancelled) setPeaks(res); }).catch(() => {});
     return () => { cancelled = true; };
-  }, [project?.id, mainTrack?.id, mainTrack?.stems_status, project?.render_version]);
+  }, [project?.id, mainTrack?.id, mainTrack?.stems_status]);
 
   useTimelineWheelZoom(timelineScrollRef, mainTrack, setZoom);
 
@@ -176,6 +177,7 @@ export const TimelineWorkspace: React.FC<TimelineWorkspaceProps> = ({ onOpenSett
           <TransportBar
             isPlaying={playback.isPlaying} loopSelection={playback.loopSelection}
             hasSelection={Boolean(ctx.selection)} displayTime={playback.displayTime}
+            timecodeRef={timecodeRef}
             trackDuration={effectiveDuration} loadingAudio={playback.loadingAudio}
             isStemPreviewActive={playback.isStemPreviewActive} bakingMix={actions.bakingMix}
             abMode={ctx.abMode} beatSnap={beatSnap} metronomeEnabled={metronomeEnabled} zoom={zoom}
@@ -187,7 +189,7 @@ export const TimelineWorkspace: React.FC<TimelineWorkspaceProps> = ({ onOpenSett
             onToggleMetronome={() => setMetronomeEnabled((v) => !v)} onZoomChange={setZoom}
           />
           <TimelineTracks
-            mainTrack={mainTrack} trackDuration={effectiveDuration} displayTime={playback.displayTime}
+            mainTrack={mainTrack} trackDuration={effectiveDuration} currentTimeRef={playback.currentTimeRef}
             zoom={zoom} stemsReady={stemsReady} stemsProcessing={stemsProcessing} peaks={peaks}
             selection={ctx.selection} laneDragSelection={laneSel.laneDragSelection}
             stemChannels={playback.stemChannels} masterEdits={masterEdits} stemEditsMap={stemEditsMap}
@@ -235,8 +237,8 @@ export const TimelineWorkspace: React.FC<TimelineWorkspaceProps> = ({ onOpenSett
           />
           <AddLayerPopover
             open={addLayerOpen} anchorRef={addLayerBtnRef}
-            dropTime={ctx.selection ? ctx.selection.start : playback.displayTime}
-            mainTrackBpm={mainTrack.bpm} sfxItems={ctx.sfxItems} downloadableRefs={downloadableRefs}
+            dropTime={ctx.selection ? ctx.selection.start : playback.currentTimeRef.current}
+            mainTrackBpm={mainTrack.bpm} mainTrackKey={mainTrack.key} sfxItems={ctx.sfxItems} downloadableRefs={downloadableRefs}
             busy={actions.busyLayerAdd} onClose={() => setAddLayerOpen(false)}
             onDropSfx={async (sfx) => { await actions.handleDropSfx(sfx); setAddLayerOpen(false); }}
             onDropReference={async (opts) => { await actions.handleDropReference(opts); setAddLayerOpen(false); }}

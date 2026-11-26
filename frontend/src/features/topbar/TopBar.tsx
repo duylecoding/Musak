@@ -4,6 +4,8 @@ import {
   Cpu,
   HelpCircle,
   KeyRound,
+  PanelRightClose,
+  PanelRightOpen,
   Redo2,
   Settings,
   Sparkles,
@@ -18,9 +20,15 @@ import styles from './TopBar.module.css';
 
 export interface TopBarProps {
   onOpenSettings: () => void;
+  chatPanelOpen?: boolean;
+  onToggleChatPanel?: () => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ onOpenSettings }) => {
+export const TopBar: React.FC<TopBarProps> = ({
+  onOpenSettings,
+  chatPanelOpen = true,
+  onToggleChatPanel,
+}) => {
   const { health, backendOnline, currentProject, historyBusy, undo, redo } = useProject();
   const { tipsEnabled, toggleTips } = useTooltips();
 
@@ -108,6 +116,21 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSettings }) => {
             <span>Tips</span>
           </button>
         </HelpTip>
+
+        {onToggleChatPanel && (
+          <HelpTip side="bottom" title="Gemini Side Panel" content={chatPanelOpen ? 'Hide the Gemini Co-Pilot panel to give the timeline full width.' : 'Show the Gemini Co-Pilot panel.'}>
+            <button
+              type="button"
+              aria-pressed={chatPanelOpen}
+              aria-label={chatPanelOpen ? 'Hide Gemini panel' : 'Show Gemini panel'}
+              onClick={onToggleChatPanel}
+              className={`${styles.tipsBtn} ${chatPanelOpen ? styles.tipsBtnActive : ''}`}
+            >
+              {chatPanelOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
+              <span>Gemini</span>
+            </button>
+          </HelpTip>
+        )}
 
         <div className={styles.historyGroup}>
           <HelpTip side="bottom" content="Step back and remove the last remix change you applied.">

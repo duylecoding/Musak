@@ -1,5 +1,6 @@
 import type React from 'react';
 import {
+  Activity,
   CloudRain,
   Disc,
   Disc3,
@@ -7,6 +8,7 @@ import {
   Filter,
   Flame,
   Guitar,
+  Maximize2,
   Mic2,
   Radio,
   Sparkles,
@@ -64,6 +66,8 @@ export const AUTO_DUCK_PRESETS: Array<{ id: string; label: string; stems: string
   { id: 'none', label: 'None', stems: [] },
   { id: 'vocals', label: 'Vocals', stems: ['vocals'] },
   { id: 'drums', label: 'Drums', stems: ['drums'] },
+  { id: 'melody', label: 'Melody', stems: ['other'] },
+  { id: 'drums_melody', label: 'Drums + Melody', stems: ['drums', 'other'] },
   { id: 'instrumental', label: 'Instrumental', stems: ['drums', 'bass', 'other'] },
   { id: 'all', label: 'All', stems: ['vocals', 'drums', 'bass', 'other'] },
 ];
@@ -152,6 +156,28 @@ export const SEGMENT_FX_OPTIONS: SegmentFxDef[] = [
       title: 'Bass Boost',
       description: 'Punchy +6 dB low-end boost.',
       operations: [fxOp({ type: 'bass_boost', gain_db: 6, cutoff_hz: 140 }, s, e, st, snap)],
+    }),
+  },
+  {
+    id: 'sidechain_pump',
+    label: 'Sidechain Pump',
+    tip: 'Beat-synced future-bass pumping that breathes on every beat.',
+    icon: Activity,
+    build: (s, e, st, snap) => ({
+      title: 'Sidechain Pump',
+      description: 'Beat-synced melodic-bass sidechain volume pump.',
+      operations: [fxOp({ type: 'sidechain_pump', division_beats: 1.0, depth: 0.7, apply_to_layers: true }, s, e, st, snap)],
+    }),
+  },
+  {
+    id: 'stereo_wash',
+    label: 'Stereo Wash',
+    tip: 'Widens audio across your headphones with lush chorus shimmer.',
+    icon: Maximize2,
+    build: (s, e, st, snap) => ({
+      title: 'Stereo Wash',
+      description: 'Wide stereo chorus wash for emotional drops and breakdowns.',
+      operations: [fxOp({ type: 'stereo_wash', width: 1.45, chorus_mix: 0.35 }, s, e, st, snap)],
     }),
   },
 ];

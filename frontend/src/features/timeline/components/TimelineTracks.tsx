@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import type { EditBlock, MainTrack, TimeSelection, WaveformPeaksResponse } from '../../../shared/api';
 import type { InstrumentStem } from '../../../shared/utils/timelineMath';
@@ -11,10 +11,23 @@ import { StemLaneRow } from './StemLaneRow';
 import { TimelineRuler } from './TimelineRuler';
 import styles from './TimelineWorkspace.module.css';
 
+const HEADER_WIDTH_KEY = 'musak_timeline_header_width';
+const DEFAULT_HEADER_WIDTH = 204;
+const MIN_HEADER_WIDTH = 140;
+const MAX_HEADER_WIDTH = 380;
+
+function readHeaderWidth(): number {
+  try {
+    const raw = Number(window.localStorage?.getItem(HEADER_WIDTH_KEY));
+    if (Number.isFinite(raw) && raw >= MIN_HEADER_WIDTH && raw <= MAX_HEADER_WIDTH) return Math.round(raw);
+  } catch { /* ignore */ }
+  return DEFAULT_HEADER_WIDTH;
+}
+
 export interface TimelineTracksProps {
   mainTrack: MainTrack;
   trackDuration: number;
-  displayTime: number;
+  currentTimeRef: React.MutableRefObject<number>;
   zoom: number;
   stemsReady: boolean;
   stemsProcessing: boolean;
@@ -44,17 +57,81 @@ export interface TimelineTracksProps {
 }
 
 export const TimelineTracks: React.FC<TimelineTracksProps> = ({
-  mainTrack, trackDuration, displayTime, zoom, stemsReady, stemsProcessing, peaks, selection,
+  mainTrack, trackDuration, currentTimeRef, zoom, stemsReady, stemsProcessing, peaks, selection,
   laneDragSelection, stemChannels, masterEdits, stemEditsMap, layerEdits, clipDragPreview,
   timelineScrollRef, playheadLineRef, playheadDiamondRef, addLayerBtnRef, laneRefs,
   onSeekToTime, onSelectionChange, onUpdateChannel, onLanePointerDown, onClipPointerDown,
   onInspectClip, onToggleLayerEnabled, onDeleteEdit, onDeleteCue, onToggleAddLayer,
 }) => {
-  const playheadPct = trackDuration > 0 ? Math.max(0, Math.min(100, (displayTime / trackDuration) * 100)) : 0;
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [headerWidth, setHeaderWidth] = useState<number>(readHeaderWidth);
+  const [resizingCol, setResizingCol] = useState(false);
+
+  const commitHeaderWidth = useCallback((w: number) => {
+    const clamped = Math.max(MIN_HEADER_WIDTH, Math.min(MAX_HEADER_WIDTH, Math.round(w)));
+    setHeaderWidth(clamped);
+    frameRef.current?.style.setProperty('--timeline-header-width', `${clamped}px`);
+    try { window.localStorage?.setItem(HEADER_WIDTH_KEY, String(clamped)); } catch { /* ignore */ }
+  }, []);
+
+  const handleColumnResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = headerWidth;
+    let latestW = startW;
+    let rafId = 0;
+    setResizingCol(true);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+
+    const applyWidth = () => {
+      rafId = 0;
+      frameRef.current?.style.setProperty('--timeline-header-width', `${latestW}px`);
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      latestW = Math.max(MIN_HEADER_WIDTH, Math.min(MAX_HEADER_WIDTH, Math.round(startW + (ev.clientX - startX))));
+      if (!rafId) rafId = window.requestAnimationFrame(applyWidth);
+    };
+
+    const onUp = () => {
+      if (rafId) { window.cancelAnimationFrame(rafId); rafId = 0; }
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      setResizingCol(false);
+      commitHeaderWidth(latestW);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }, [commitHeaderWidth, headerWidth]);
+
+  const playheadPct = trackDuration > 0 ? Math.max(0, Math.min(100, (currentTimeRef.current / trackDuration) * 100)) : 0;
+  const frameStyle = { '--timeline-header-width': `${headerWidth}px` } as React.CSSProperties;
 
   return (
-    <div ref={timelineScrollRef} className={styles.timelineScroll}>
-      <div style={{ width: zoom === 1 ? '100%' : `calc(156px + (100% - 156px) * ${zoom})` }} className={styles.timelineInner}>
+    <div ref={frameRef} style={frameStyle} className={styles.timelineFrame}>
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize track labels column"
+        title="Drag to widen track labels (double-click to reset)"
+        onPointerDown={handleColumnResizeStart}
+        onDoubleClick={() => commitHeaderWidth(DEFAULT_HEADER_WIDTH)}
+        className={resizingCol ? `${styles.columnResizer} ${styles.columnResizerActive}` : styles.columnResizer}
+      />
+      <div ref={timelineScrollRef} className={styles.timelineScroll}>
+        <div
+          style={{
+            width: zoom === 1
+              ? '100%'
+              : `calc(var(--timeline-header-width, 204px) + (100% - var(--timeline-header-width, 204px)) * ${zoom})`,
+          }}
+          className={styles.timelineInner}
+        >
         <div className={styles.playheadLayer}>
           <div ref={playheadLineRef} style={{ left: `${playheadPct}%` }} className={styles.playheadLine} />
         </div>
@@ -62,7 +139,7 @@ export const TimelineTracks: React.FC<TimelineTracksProps> = ({
         <TimelineRuler
           trackDuration={trackDuration}
           zoom={zoom}
-          displayTime={displayTime}
+          currentTimeRef={currentTimeRef}
           sections={mainTrack.sections ?? []}
           cues={mainTrack.cues ?? []}
           selection={selection}
@@ -148,6 +225,7 @@ export const TimelineTracks: React.FC<TimelineTracksProps> = ({
         })}
 
         <AddSoundLayerRow buttonRef={addLayerBtnRef} onToggleOpen={onToggleAddLayer} />
+        </div>
       </div>
     </div>
   );

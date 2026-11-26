@@ -45,9 +45,23 @@ export function buildSfxLayerPayload(sfx: SfxItem, track: MainTrack, rawStart: n
         end: Number(end.toFixed(2)),
         gain_db: 0,
         snap_to_beat: true,
+        ...(track.key ? { musical_key: track.key } : {}),
       },
     ],
   };
+}
+
+function computeBpmStretchScale(
+  mainBpm: number,
+  refBpm: number | null | undefined,
+  matchBpm: boolean
+): number {
+  if (!matchBpm || mainBpm <= 0 || !refBpm || refBpm <= 0) return 1;
+  const candidates = [refBpm, refBpm * 2, refBpm / 2];
+  const effectiveRefBpm = candidates.reduce((best, b) =>
+    Math.abs(mainBpm - b) < Math.abs(mainBpm - best) ? b : best
+  );
+  return effectiveRefBpm / mainBpm;
 }
 
 export function buildReferenceLayerPayload(
@@ -59,6 +73,9 @@ export function buildReferenceLayerPayload(
   const stem = opts.stem ?? 'full';
   const rawStart = opts.targetStart ?? fallbackStart;
   const refStart = Math.max(0, opts.refStart ?? 0);
+  const matchBpm = opts.matchBpm ?? true;
+  const matchKey = opts.matchKey ?? stem !== 'drums';
+  const stretchScale = computeBpmStretchScale(track.bpm, ref.bpm, matchBpm);
 
   let clampedStart: number;
   let end: number;
@@ -67,9 +84,11 @@ export function buildReferenceLayerPayload(
   if (typeof opts.refEnd === 'number' && opts.refEnd > refStart) {
     const momentDur = opts.refEnd - refStart;
     clampedStart = Math.max(0, Math.min(Math.max(0, track.duration - 0.5), rawStart));
-    end = Math.min(track.duration, clampedStart + momentDur);
+    end = Math.min(track.duration, clampedStart + momentDur * stretchScale);
     const actualLen = Math.max(0.5, end - clampedStart);
-    refEnd = opts.loopToFit ? opts.refEnd : Math.min(opts.refEnd, refStart + actualLen);
+    refEnd = opts.loopToFit
+      ? opts.refEnd
+      : Math.min(opts.refEnd, refStart + actualLen / stretchScale);
   } else {
     const bpm = track.bpm && track.bpm > 20 ? track.bpm : 120;
     const bar4Dur = 4 * 4 * (60 / bpm);
@@ -77,13 +96,10 @@ export function buildReferenceLayerPayload(
       ref.duration && ref.duration > refStart + 1 ? ref.duration - refStart : bar4Dur;
     const maxClipLen = Math.min(availRefDur, Math.max(4, Math.min(16, bar4Dur)));
     clampedStart = Math.max(0, Math.min(Math.max(0, track.duration - 1), rawStart));
-    end = Math.min(track.duration, clampedStart + maxClipLen);
+    end = Math.min(track.duration, clampedStart + maxClipLen * stretchScale);
     const actualLen = Math.max(0.5, end - clampedStart);
-    refEnd = refStart + actualLen;
+    refEnd = refStart + Math.min(maxClipLen, actualLen / stretchScale);
   }
-
-  const matchBpm = opts.matchBpm ?? true;
-  const matchKey = opts.matchKey ?? stem !== 'drums';
   const stemLabel =
     stem === 'full' ? 'Clip' : stem === 'other' ? 'Melody' : stem.charAt(0).toUpperCase() + stem.slice(1);
   const shortTitle = ref.title.length > 22 ? `${ref.title.slice(0, 22)}…` : ref.title;

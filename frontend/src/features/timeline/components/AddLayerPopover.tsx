@@ -11,6 +11,7 @@ export interface AddLayerPopoverProps {
   anchorRef: React.RefObject<HTMLElement | null>;
   dropTime: number;
   mainTrackBpm?: number;
+  mainTrackKey?: string;
   sfxItems: SfxItem[];
   downloadableRefs: ReferenceTrack[];
   busy: boolean;
@@ -20,7 +21,7 @@ export interface AddLayerPopoverProps {
 }
 
 export const AddLayerPopover: React.FC<AddLayerPopoverProps> = ({
-  open, anchorRef, dropTime, mainTrackBpm, sfxItems, downloadableRefs, busy, onClose, onDropSfx, onDropReference,
+  open, anchorRef, dropTime, mainTrackBpm, mainTrackKey, sfxItems, downloadableRefs, busy, onClose, onDropSfx, onDropReference,
 }) => {
   const [auditionId, setAuditionId] = useState<string | null>(null);
   const [selectedRefId, setSelectedRefId] = useState<string>('');
@@ -52,7 +53,7 @@ export const AddLayerPopover: React.FC<AddLayerPopoverProps> = ({
   const toggleAudition = (sfx: SfxItem) => {
     if (auditionId === sfx.id) { stopAudition(); return; }
     stopAudition();
-    const audio = new Audio(getSfxPreviewUrl(sfx.id, mainTrackBpm, sfx.default_duration));
+    const audio = new Audio(getSfxPreviewUrl(sfx.id, mainTrackBpm, sfx.default_duration, mainTrackKey));
     audioRef.current = audio;
     setAuditionId(sfx.id);
     audio.onended = () => setAuditionId((cur) => (cur === sfx.id ? null : cur));

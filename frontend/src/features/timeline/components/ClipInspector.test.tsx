@@ -130,6 +130,20 @@ describe('ClipInspector', () => {
       />
     );
 
+    fireEvent.click(screen.getByRole('button', { name: 'Melody' }));
+    await waitFor(() =>
+      expect(onUpdateEdit).toHaveBeenCalledWith('edit-1', {
+        replace_main_stems: ['other'],
+      })
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Drums + Melody' }));
+    await waitFor(() =>
+      expect(onUpdateEdit).toHaveBeenCalledWith('edit-1', {
+        replace_main_stems: ['drums', 'other'],
+      })
+    );
+
     fireEvent.click(screen.getByRole('button', { name: 'Instrumental' }));
     await waitFor(() =>
       expect(onUpdateEdit).toHaveBeenCalledWith('edit-1', {
@@ -139,5 +153,52 @@ describe('ClipInspector', () => {
 
     fireEvent.click(screen.getByLabelText('Loop Audio to Fit'));
     await waitFor(() => expect(onUpdateEdit).toHaveBeenCalledWith('edit-1', { loop_to_fit: true }));
+  });
+
+  it('renders sidechain_pump and stereo_wash FX controls and commits updates', async () => {
+    const onUpdateEdit = vi.fn().mockResolvedValue(undefined);
+    const anchorRef = makeAnchorRef();
+
+    const { rerender } = render(
+      <ClipInspector
+        edit={makeEdit({
+          operations: [{ type: 'sidechain_pump', division_beats: 1.0, depth: 0.7, apply_to_layers: true }],
+        })}
+        anchorRef={anchorRef}
+        onClose={vi.fn()}
+        onUpdateEdit={onUpdateEdit}
+        onDeleteEdit={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '1/2 Beat' }));
+    await waitFor(() => expect(onUpdateEdit).toHaveBeenCalledWith('edit-1', { division_beats: 0.5 }));
+
+    const depthSlider = screen.getByLabelText('Pump Depth');
+    fireEvent.change(depthSlider, { target: { value: '0.85' } });
+    fireEvent.pointerUp(depthSlider);
+    await waitFor(() => expect(onUpdateEdit).toHaveBeenCalledWith('edit-1', { depth: 0.85 }));
+
+    rerender(
+      <ClipInspector
+        edit={makeEdit({
+          operations: [{ type: 'stereo_wash', width: 1.45, chorus_mix: 0.35 }],
+        })}
+        anchorRef={anchorRef}
+        onClose={vi.fn()}
+        onUpdateEdit={onUpdateEdit}
+        onDeleteEdit={vi.fn()}
+      />
+    );
+
+    const widthSlider = screen.getByLabelText('Stereo Width');
+    fireEvent.change(widthSlider, { target: { value: '1.8' } });
+    fireEvent.pointerUp(widthSlider);
+    await waitFor(() => expect(onUpdateEdit).toHaveBeenCalledWith('edit-1', { width: 1.8 }));
+
+    const chorusSlider = screen.getByLabelText('Chorus Shimmer');
+    fireEvent.change(chorusSlider, { target: { value: '0.55' } });
+    fireEvent.pointerUp(chorusSlider);
+    await waitFor(() => expect(onUpdateEdit).toHaveBeenCalledWith('edit-1', { chorus_mix: 0.55 }));
   });
 });

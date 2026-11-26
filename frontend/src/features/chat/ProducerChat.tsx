@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyRound, Sparkles } from 'lucide-react';
+import { KeyRound, PanelRightClose, Sparkles } from 'lucide-react';
 import type { ProposalTunePayload } from '../../shared/api';
 import { useProject } from '../../state/ProjectContext';
 import { ChatComposer } from './ChatComposer';
@@ -11,9 +11,10 @@ import styles from './ProducerChat.module.css';
 
 export interface ProducerChatProps {
   onOpenSettings: () => void;
+  onClose?: () => void;
 }
 
-export const ProducerChat: React.FC<ProducerChatProps> = ({ onOpenSettings }) => {
+export const ProducerChat: React.FC<ProducerChatProps> = ({ onOpenSettings, onClose }) => {
   const {
     health,
     currentProject,
@@ -165,7 +166,20 @@ export const ProducerChat: React.FC<ProducerChatProps> = ({ onOpenSettings }) =>
           </h2>
           <p className={styles.headerSubtitle}>Describe the vibe — tune, preview &amp; apply</p>
         </div>
-        <span className={styles.copilotBadge}>Co-Pilot</span>
+        <div className={styles.headerActions}>
+          <span className={styles.copilotBadge}>Co-Pilot</span>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Hide Gemini panel"
+              title="Hide Gemini panel"
+              className={styles.hidePanelBtn}
+            >
+              <PanelRightClose className={styles.iconSm} />
+            </button>
+          )}
+        </div>
       </div>
 
       {!apiKeyConfigured && (

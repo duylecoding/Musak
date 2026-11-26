@@ -96,6 +96,8 @@ EditOperationType = Literal[
     "repeat_section",
     "beat_repeat",
     "vinyl_brake",
+    "sidechain_pump",
+    "stereo_wash",
 ]
 
 
@@ -147,9 +149,14 @@ class EditOperation(BaseModel):
     # add_sfx
     sfx_id: str | None = None
     layer_id: str | None = None
-    # repeat_section / beat_repeat
+    musical_key: str | None = None
+    # repeat_section / beat_repeat / sidechain_pump / stereo_wash / routing
     repeat_count: int | None = None
     division_beats: float | None = None
+    depth: float | None = Field(default=None, ge=0.05, le=0.95, allow_inf_nan=False)
+    width: float | None = Field(default=None, ge=0.5, le=2.0, allow_inf_nan=False)
+    chorus_mix: float | None = Field(default=None, ge=0.0, le=0.8, allow_inf_nan=False)
+    apply_to_layers: bool | None = None
 
 
 class EditBlock(BaseModel):

@@ -42,7 +42,7 @@ const SELECTION_CLASS_MAP: Record<InstrumentStem, string> = {
   other: styles.selOther,
 };
 
-export const StemLaneRow: React.FC<StemLaneRowProps> = ({
+export const StemLaneRow: React.FC<StemLaneRowProps> = React.memo(({
   lane, channel, stemsReady, isLaneMuted, processingOverlay, peaks, isUsingMainFallback,
   beats, trackDuration, displaySelection, edits, clipDragPreview, laneRef,
   onUpdateChannel, onLanePointerDown, onClipPointerDown, onInspectClip,
@@ -138,4 +138,4 @@ export const StemLaneRow: React.FC<StemLaneRowProps> = ({
       </div>
     </div>
   );
-};
+});

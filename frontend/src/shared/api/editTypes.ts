@@ -43,6 +43,11 @@ export interface EditUpdatePayload {
   loop_to_fit?: boolean;
   division_beats?: number;
   repeat_count?: number;
+  depth?: number;
+  width?: number;
+  chorus_mix?: number;
+  apply_to_layers?: boolean;
+  musical_key?: string;
 }
 
 export interface EditOperation {
@@ -59,7 +64,9 @@ export interface EditOperation {
     | 'cut_section'
     | 'repeat_section'
     | 'beat_repeat'
-    | 'vinyl_brake';
+    | 'vinyl_brake'
+    | 'sidechain_pump'
+    | 'stereo_wash';
   stems?: string[];
   start?: number;
   end?: number;
@@ -99,6 +106,11 @@ export interface EditOperation {
   layer_id?: string;
   repeat_count?: number;
   division_beats?: number;
+  depth?: number;
+  width?: number;
+  chorus_mix?: number;
+  apply_to_layers?: boolean;
+  musical_key?: string;
 }
 
 export interface EditBlock {

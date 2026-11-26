@@ -133,6 +133,14 @@ class ProjectStore:
             return pdir / f"rendered_v{render_version}.wav"
         return pdir / "rendered.wav"
 
+    def rendered_stems_dir(self, project_id: str) -> Path:
+        return self.project_dir(project_id) / "rendered_stems"
+
+    def rendered_stem_path(self, project_id: str, stem_name: str, render_version: int) -> Path:
+        stem = validate_stem_name(stem_name)
+        rdir = self.rendered_stems_dir(project_id)
+        return _ensure_within(rdir, rdir / f"{stem}_v{render_version}.wav")
+
     def prune_old_renders(self, project_id: str, keep_version: int | None = None) -> None:
         """Best-effort cleanup of older versioned render WAVs (ignores Windows WinError 32 if streaming)."""
         pdir = self.project_dir(project_id)
@@ -148,6 +156,16 @@ class ProjectStore:
                 candidate.unlink(missing_ok=True)
             except OSError:
                 pass
+        rs_dir = self.rendered_stems_dir(project_id)
+        if rs_dir.is_dir():
+            keep_suffix = f"_v{keep_version}.wav" if (keep_version is not None and keep_version > 0) else None
+            for candidate in rs_dir.glob("*_v*.wav"):
+                if keep_suffix and candidate.name.endswith(keep_suffix):
+                    continue
+                try:
+                    candidate.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     def main_stems_dir(self, project_id: str) -> Path:
         return self.project_dir(project_id) / "stems"

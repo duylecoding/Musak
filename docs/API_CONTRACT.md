@@ -1,4 +1,4 @@
-# Musak Internal API Contract (v0.4)
+# Musak Internal API Contract (v0.5)
 
 Base URL: `http://127.0.0.1:8765`
 CORS: Allow `http://localhost:5173`, `http://127.0.0.1:5173`, `file://`, and `null` (`allow_credentials=False`, `expose_headers=["Content-Disposition"]`).
@@ -38,7 +38,7 @@ interface WaveformPeaksResponse {
 interface SfxItem {
   id: string;
   name: string;
-  category: "riser" | "impact" | "transition" | "drums";
+  category: "riser" | "impact" | "transition" | "drums" | "melodic";
   description: string;
   default_duration: number;
   bpm_synced: boolean;
@@ -66,7 +66,9 @@ interface EditOperation {
     | "cut_section"
     | "repeat_section"
     | "beat_repeat"
-    | "vinyl_brake";
+    | "vinyl_brake"
+    | "sidechain_pump"
+    | "stereo_wash";
   stems?: string[];
   start?: number;
   end?: number;
@@ -105,9 +107,14 @@ interface EditOperation {
   // add_sfx
   sfx_id?: string;
   layer_id?: string;
-  // repeat_section / beat_repeat
+  musical_key?: string;
+  // repeat_section / beat_repeat / sidechain_pump / stereo_wash / post-overlay
   repeat_count?: number;
   division_beats?: number;
+  depth?: number;
+  width?: number;
+  chorus_mix?: number;
+  apply_to_layers?: boolean;
 }
 ```
 
@@ -129,8 +136,8 @@ interface EditOperation {
 - `POST /api/projects/{project_id}/export` -> Body `{ format?: "wav"|"mp3"|"zip", target?: "remix"|"instrumental"|"vocals"|"stems_zip", master_preset?: "off"|"balanced"|"club"|"warm" }`
 
 ## 4. Built-In Transition SFX Library
-- `GET /api/sfx` -> `{ items: SfxItem[] }`
-- `GET /api/sfx/{sfx_id}/preview?bpm=120&duration=4.0` -> stereo 44.1 kHz WAV preview stream
+- `GET /api/sfx` -> `{ items: SfxItem[] }` (includes key-synced melodic synths: `supersaw_swell`, `ambient_pad`)
+- `GET /api/sfx/{sfx_id}/preview?bpm=120&duration=4.0&key=G%23%20Minor` -> stereo 44.1 kHz WAV preview stream
 
 ## 5. Reference Shelf & Auto-Mashup
 - `POST /api/projects/{project_id}/references/upload` (multipart `file`, optional `title`) -> `ProjectState`
@@ -149,7 +156,7 @@ interface EditOperation {
 - `POST /api/projects/{project_id}/proposals/{proposal_id}/tune` -> Body `{ intensity?, keep_vocals_clear?, shift_beats? }` -> `ProjectState`
 - `POST /api/projects/{project_id}/edits/{edit_id}/duplicate` -> Body `{ start?: number }` -> clones edit block cleanly to target start (or immediately after original) -> `ProjectState`
 - `PATCH /api/projects/{project_id}/edits/{edit_id}`
-  - Body: `{ enabled?, start?, end?, title?, gain_db?, fade_in_ms?, fade_out_ms?, fade_curve?, mode?, start_hz?, end_hz?, room_size?, wet_level?, delay_beats?, feedback?, mix?, drive_db?, cutoff_hz?, low_cut_hz?, high_cut_hz?, ref_start?, ref_end?, replace_main_stems?, match_bpm?, match_key?, loop_to_fit?, division_beats?, repeat_count? }`
+  - Body: `{ enabled?, start?, end?, title?, gain_db?, fade_in_ms?, fade_out_ms?, fade_curve?, mode?, start_hz?, end_hz?, room_size?, wet_level?, delay_beats?, feedback?, mix?, drive_db?, cutoff_hz?, low_cut_hz?, high_cut_hz?, ref_start?, ref_end?, replace_main_stems?, match_bpm?, match_key?, loop_to_fit?, division_beats?, repeat_count?, depth?, width?, chorus_mix?, apply_to_layers?, musical_key? }`
   - Allows toggling, dragging/resizing, renaming, and tweaking FX / fade / borrow parameters directly on timeline blocks; re-renders remix, returns `ProjectState`.
 - `DELETE /api/projects/{project_id}/edits/{edit_id}` -> `ProjectState`
 - `POST /api/projects/{project_id}/undo` -> `ProjectState`

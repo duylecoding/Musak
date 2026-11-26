@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from musak.dsp.arrangement import apply_arrangement_ops
 from musak.dsp.borrow import compute_effective_borrow_rate
-from musak.dsp.dj_moves import _apply_beat_repeat, _apply_vinyl_brake
+from musak.dsp.dj_moves import (
+    _apply_beat_repeat,
+    _apply_sidechain_pump,
+    _apply_stereo_wash,
+    _apply_vinyl_brake,
+)
 from musak.dsp.mastering import apply_master_preset, export_mix
 from musak.dsp.pipeline import (
     _execute_dsp_pipeline,
@@ -26,6 +31,8 @@ __all__ = [
     "ENDPOINT_SNAP_EPSILON",
     "MAX_PREVIEW_SECONDS",
     "_apply_beat_repeat",
+    "_apply_sidechain_pump",
+    "_apply_stereo_wash",
     "_apply_vinyl_brake",
     "apply_arrangement_ops",
     "apply_master_preset",

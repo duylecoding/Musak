@@ -13,7 +13,7 @@ export interface LaneWaveformProps {
   processingOverlay?: boolean;
 }
 
-export const LaneWaveform: React.FC<LaneWaveformProps> = ({
+export const LaneWaveform: React.FC<LaneWaveformProps> = React.memo(({
   peaks,
   colorVar,
   opacity = 0.9,
@@ -70,4 +70,4 @@ export const LaneWaveform: React.FC<LaneWaveformProps> = ({
       )}
     </div>
   );
-};
+});

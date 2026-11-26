@@ -47,6 +47,8 @@ describe('SegmentActionBar', () => {
     fireEvent.click(screen.getByRole('button', { name: /^FX$/i }));
     expect(screen.getByText('Low-Pass Underwater')).toBeInTheDocument();
     expect(screen.getByText('Filter Open Up')).toBeInTheDocument();
+    expect(screen.getByText('Sidechain Pump')).toBeInTheDocument();
+    expect(screen.getByText('Stereo Wash')).toBeInTheDocument();
     expect(screen.getByText('DJ Moves')).toBeInTheDocument();
     expect(screen.getByText('Club Buildup')).toBeInTheDocument();
     expect(screen.getByText('Real Vinyl Brake')).toBeInTheDocument();
@@ -94,6 +96,18 @@ describe('SegmentActionBar', () => {
     fireEvent.click(screen.getByText('Beat Stutter (1/4)'));
     expect(props.onApplyFx).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'beat_repeat' })
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^FX$/i }));
+    fireEvent.click(screen.getByText('Sidechain Pump'));
+    expect(props.onApplyFx).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sidechain_pump', label: 'Sidechain Pump' })
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^FX$/i }));
+    fireEvent.click(screen.getByText('Stereo Wash'));
+    expect(props.onApplyFx).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'stereo_wash', label: 'Stereo Wash' })
     );
   });
 

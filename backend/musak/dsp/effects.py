@@ -9,6 +9,7 @@ import numpy as np
 import pedalboard as pb
 from scipy.signal import butter, sosfilt
 
+from musak.dsp.cache import get_cached_sfx
 from musak.dsp.utils import (
     _apply_tail_fade_out,
     _asymmetric_cosine_mask,
@@ -192,9 +193,15 @@ def _apply_bass_boost(audio: np.ndarray, sr: int, s_idx: int, e_idx: int, op: Ed
 
 
 def _build_sfx_overlay(
-    total_samples: int, sr: int, beats: list[float], duration: float, bpm: float, op: EditOperation
-) -> np.ndarray | None:
-    """Synthesize and place an `add_sfx` layer onto a `(total_samples, 2)` stereo overlay buffer."""
+    total_samples: int,
+    sr: int,
+    beats: list[float],
+    duration: float,
+    bpm: float,
+    op: EditOperation,
+    default_key: str | None = None,
+) -> tuple[int, np.ndarray] | None:
+    """Synthesize and return `(start_idx, fitted_stereo_slice)` for an `add_sfx` layer."""
     if not op.sfx_id:
         return None
     sfx_item = get_sfx_item(op.sfx_id)
@@ -212,7 +219,17 @@ def _build_sfx_overlay(
     if length <= 0:
         return None
 
-    sfx_audio = synthesize_sfx(op.sfx_id, duration=length / float(sr), sr=sr, bpm=bpm)
+    resolved_key = op.musical_key or default_key
+    sfx_audio = get_cached_sfx(
+        op.sfx_id,
+        length,
+        sr,
+        bpm,
+        resolved_key,
+        lambda: synthesize_sfx(
+            op.sfx_id or "", duration=length / float(sr), sr=sr, bpm=bpm, musical_key=resolved_key
+        ),
+    )
     if len(sfx_audio) == 0:
         return None
 
@@ -224,7 +241,4 @@ def _build_sfx_overlay(
     fi_ms = float(np.clip(op.fade_in_ms if op.fade_in_ms is not None else 10.0, 0.0, 4000.0))
     fo_ms = float(np.clip(op.fade_out_ms if op.fade_out_ms is not None else 10.0, 0.0, 4000.0))
     fitted *= _asymmetric_cosine_mask(length, int(round(fi_ms * sr / 1000.0)), int(round(fo_ms * sr / 1000.0)))
-
-    overlay = np.zeros((total_samples, 2), dtype=np.float32)
-    overlay[s_idx:e_idx] = fitted
-    return overlay
+    return s_idx, fitted

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type React from 'react';
 import { getMainAudioUrl, getRenderedAudioUrl, type ProjectState, type TimeSelection } from '../../../shared/api';
+import { formatTime } from '../../../shared/utils/format';
 import { disposeAudioElement, getActiveStemTime, isEditableElement, useStemAudio, waitForMetadata } from './useStemAudio';
 
 export interface UsePlaybackEngineOptions {
@@ -11,10 +12,11 @@ export interface UsePlaybackEngineOptions {
   playheadRef: React.MutableRefObject<number>;
   playheadLineRef: React.RefObject<HTMLDivElement>;
   playheadDiamondRef: React.RefObject<HTMLDivElement>;
+  timecodeRef?: React.RefObject<HTMLSpanElement>;
 }
 
 export function usePlaybackEngine({
-  project, abMode, selection, trackDuration, playheadRef, playheadLineRef, playheadDiamondRef,
+  project, abMode, selection, trackDuration, playheadRef, playheadLineRef, playheadDiamondRef, timecodeRef,
 }: UsePlaybackEngineOptions) {
   const mainTrack = project?.main_track ?? null;
   const stemsReady = mainTrack?.stems_status === 'ready';
@@ -43,8 +45,8 @@ export function usePlaybackEngine({
 
   const stopFromEnded = useCallback(() => { isPlayingRef.current = false; setIsPlaying(false); }, []);
   const {
-    stemChannels, stemAudiosRef, teardownStemAudio, ensureStemGraph, updateStemChannel, resetStemChannels,
-  } = useStemAudio(project, stemsReady, isStemPreviewRef, stopFromEnded);
+    stemChannels, stemAudiosRef, ensureStemGraph, updateStemChannel, resetStemChannels,
+  } = useStemAudio(project, abMode, stemsReady, isStemPreviewRef, stopFromEnded);
 
   const isStemPreviewActive = useMemo(
     () => stemsReady && Object.values(stemChannels).some((c) => c.muted || c.solo || c.volume !== 100),
@@ -61,11 +63,12 @@ export function usePlaybackEngine({
   const updatePlayheadVisual = useCallback((t: number) => {
     currentTimeRef.current = t;
     playheadRef.current = t;
+    if (timecodeRef?.current) timecodeRef.current.textContent = formatTime(t);
     if (durationRef.current <= 0) return;
     const pct = `${Math.max(0, Math.min(100, (t / durationRef.current) * 100))}%`;
     if (playheadLineRef.current) playheadLineRef.current.style.left = pct;
     if (playheadDiamondRef.current) playheadDiamondRef.current.style.left = pct;
-  }, [playheadRef, playheadLineRef, playheadDiamondRef]);
+  }, [playheadRef, playheadLineRef, playheadDiamondRef, timecodeRef]);
 
   const teardownMixAudio = useCallback(() => {
     mixSessionRef.current += 1;
@@ -85,7 +88,6 @@ export function usePlaybackEngine({
 
   useEffect(() => {
     teardownMixAudio();
-    teardownStemAudio();
     stopFromEnded();
     if (!project || !mainTrack) return;
 
@@ -135,9 +137,8 @@ export function usePlaybackEngine({
       audio.removeEventListener('error', onError);
       audio.removeEventListener('ended', onEnded);
       teardownMixAudio();
-      teardownStemAudio();
     };
-  }, [project?.id, mainTrack?.id, stopFromEnded, teardownStemAudio, teardownMixAudio, updatePlayheadVisual]);
+  }, [project?.id, mainTrack?.id, stopFromEnded, teardownMixAudio, updatePlayheadVisual]);
 
   useEffect(() => {
     const audio = mixAudioRef.current;
@@ -170,6 +171,7 @@ export function usePlaybackEngine({
     pendingRestoreRef.current = null;
     mixAudioRef.current?.pause();
     Object.values(stemAudiosRef.current).forEach((a) => a?.pause());
+    setDisplayTime(currentTimeRef.current);
     stopFromEnded();
   }, [stemAudiosRef, stopFromEnded]);
 
@@ -221,26 +223,40 @@ export function usePlaybackEngine({
 
   useEffect(() => {
     if (!isPlaying) return;
-    let rafId = 0, lastUi = 0, lastSync = 0;
+    let rafId = 0, lastSync = 0, lastText = 0;
     const tick = (now: number) => {
       if (!isPlayingRef.current) return;
       if (pendingRestoreRef.current !== null) {
         rafId = window.requestAnimationFrame(tick);
         return;
       }
-      const shouldSync = now - lastSync > 150;
+      const shouldSync = now - lastSync > 400;
       if (shouldSync) lastSync = now;
       const activeTime = isStemPreviewRef.current
         ? getActiveStemTime(stemAudiosRef.current, currentTimeRef.current, shouldSync)
         : (mixAudioRef.current?.currentTime ?? currentTimeRef.current);
       const sel = selectionRef.current;
-      if (loopSelectionRef.current && sel && sel.end > sel.start && activeTime >= sel.end) seekToTime(sel.start);
-      else { updatePlayheadVisual(activeTime); if (now - lastUi > 90) { lastUi = now; setDisplayTime(activeTime); } }
+      if (loopSelectionRef.current && sel && sel.end > sel.start && activeTime >= sel.end) {
+        seekToTime(sel.start);
+      } else {
+        currentTimeRef.current = activeTime;
+        playheadRef.current = activeTime;
+        if (durationRef.current > 0) {
+          const pct = `${Math.max(0, Math.min(100, (activeTime / durationRef.current) * 100))}%`;
+          if (playheadLineRef.current) playheadLineRef.current.style.left = pct;
+          if (playheadDiamondRef.current) playheadDiamondRef.current.style.left = pct;
+        }
+        if (now - lastText > 120) {
+          lastText = now;
+          if (timecodeRef?.current) timecodeRef.current.textContent = formatTime(activeTime);
+          else setDisplayTime(activeTime);
+        }
+      }
       rafId = window.requestAnimationFrame(tick);
     };
     rafId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(rafId);
-  }, [isPlaying, seekToTime, stemAudiosRef, updatePlayheadVisual]);
+  }, [isPlaying, playheadDiamondRef, playheadLineRef, playheadRef, seekToTime, stemAudiosRef, timecodeRef]);
 
   const handlePlayPause = useCallback(() => {
     if (!mainTrack) return;

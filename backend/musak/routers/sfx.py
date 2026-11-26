@@ -24,8 +24,11 @@ def stream_sfx_preview(
     sfx_id: str,
     bpm: Annotated[float, Query(ge=40.0, le=240.0)] = 120.0,
     duration: Annotated[float | None, Query(gt=0.0, le=30.0)] = None,
+    key: Annotated[str | None, Query(max_length=32)] = None,
 ) -> FileResponse:
     if get_sfx_item(sfx_id) is None:
         raise HTTPException(status_code=404, detail=f"Unknown SFX '{sfx_id}'.")
-    wav_path = render_sfx_preview_wav(sfx_id, cache_dir=get_data_dir() / ".sfx_cache", bpm=bpm, duration=duration)
+    wav_path = render_sfx_preview_wav(
+        sfx_id, cache_dir=get_data_dir() / ".sfx_cache", bpm=bpm, duration=duration, musical_key=key
+    )
     return FileResponse(path=str(wav_path), media_type="audio/wav", filename=f"{sfx_id}.wav")

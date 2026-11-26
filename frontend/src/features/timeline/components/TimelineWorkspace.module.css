@@ -23,14 +23,51 @@
   overflow: hidden;
 }
 
+.timelineFrame {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  border-radius: var(--radius-xl);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .timelineScroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  border-radius: var(--radius-xl);
-  background-color: var(--bg-app);
-  border: 1px solid var(--border-subtle);
   position: relative;
+}
+
+.columnResizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--timeline-header-width, 204px) - 4px);
+  width: 8px;
+  cursor: col-resize;
+  z-index: calc(var(--z-ruler) + 2);
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+
+.columnResizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background-color: transparent;
+  transition: background-color 140ms ease;
+}
+
+.columnResizer:hover::after,
+.columnResizerActive::after {
+  background-color: var(--accent-primary);
 }
 
 .timelineInner {
@@ -45,7 +82,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 156px;
+  left: var(--timeline-header-width, 204px);
   right: 0;
   pointer-events: none;
   z-index: var(--z-playhead);
@@ -59,6 +96,7 @@
   width: 1px;
   background-color: var(--text-accent);
   box-shadow: 0 0 8px var(--accent-primary);
+  will-change: left;
 }
 
 .masterRow {
@@ -68,7 +106,7 @@
 }
 
 .masterHeader {
-  width: 156px;
+  width: var(--timeline-header-width, 204px);
   flex-shrink: 0;
   position: sticky;
   left: 0;

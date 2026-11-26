@@ -200,6 +200,22 @@ describe('TopBar', () => {
     expect(window.localStorage.getItem('musak_tips_enabled')).toBe('false');
   });
 
+  it('toggles Gemini side panel visibility via TopBar button', () => {
+    mockUseProject.mockReturnValue(makeContext());
+    const onToggleChatPanel = vi.fn();
+
+    render(
+      <TooltipProvider>
+        <TopBar onOpenSettings={vi.fn()} chatPanelOpen={true} onToggleChatPanel={onToggleChatPanel} />
+      </TooltipProvider>
+    );
+
+    const toggleBtn = screen.getByRole('button', { name: 'Hide Gemini panel' });
+    expect(toggleBtn).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(toggleBtn);
+    expect(onToggleChatPanel).toHaveBeenCalledTimes(1);
+  });
+
   it('renders Master Polish presets and disables stem exports until stems are ready', async () => {
     const exportAudio = vi.fn().mockResolvedValue(undefined);
     const ctxNone = makeContext({ currentProject: makeProject('none'), exportAudio });

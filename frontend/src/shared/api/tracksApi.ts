@@ -123,10 +123,18 @@ export function getRenderedAudioUrl(project: ProjectState): string | null {
   return url.toString();
 }
 
-export function getStemAudioUrl(project: ProjectState, stemName: string): string {
+export function getStemAudioUrl(
+  project: ProjectState,
+  stemName: string,
+  mode: 'original' | 'remix' = 'original'
+): string {
   const fromMap = project.main_track?.stem_urls?.[stemName];
   const raw = fromMap || `/api/projects/${project.id}/audio/stem/${stemName}`;
-  return resolveApiUrl(raw);
+  const url = new URL(resolveApiUrl(raw));
+  if (project.main_track?.id) url.searchParams.set('t', project.main_track.id);
+  url.searchParams.set('mode', mode);
+  if (mode === 'remix') url.searchParams.set('v', String(project.render_version));
+  return url.toString();
 }
 
 export function getPreviewAudioUrl(

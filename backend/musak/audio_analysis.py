@@ -175,12 +175,22 @@ def load_audio_to_stereo_wav(
 
 
 def detect_key(y_mono: np.ndarray, sr: int) -> str:
-    """Estimate musical key using Krumhansl-Schmuckler major/minor chroma correlation."""
+    """Estimate musical key using harmonic CQT chroma (fallback STFT) + Krumhansl-Schmuckler profiles."""
     if y_mono.size < 256 or float(np.max(np.abs(y_mono))) < 1e-6:
         return "C Major"
 
-    n_fft = min(4096, max(256, 1 << (int(len(y_mono)).bit_length() - 1)))
-    chroma = librosa.feature.chroma_stft(y=y_mono, sr=sr, n_fft=n_fft)
+    chroma: np.ndarray | None = None
+    if y_mono.size >= int(sr * 2.0):
+        try:
+            y_harm = librosa.effects.harmonic(y_mono)
+            chroma = librosa.feature.chroma_cqt(y=y_harm, sr=sr)
+        except Exception:
+            chroma = None
+
+    if chroma is None:
+        n_fft = min(4096, max(256, 1 << (int(len(y_mono)).bit_length() - 1)))
+        chroma = librosa.feature.chroma_stft(y=y_mono, sr=sr, n_fft=n_fft)
+
     chroma_mean = np.mean(chroma, axis=1).astype(np.float64)
     if float(np.std(chroma_mean)) < 1e-8:
         return "C Major"

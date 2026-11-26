@@ -11,6 +11,7 @@ import soundfile as sf
 
 from musak.audio_analysis import ensure_stereo, resample_stereo
 from musak.config import STEM_NAMES
+from musak.dsp.cache import get_cached_stem_audio
 from musak.models import EditOperation, ProjectState
 from musak.storage import ProjectStore
 
@@ -144,10 +145,14 @@ def _load_stems_if_ready(
             assert clip_start is not None and clip_end is not None
             stereo = _read_audio_slice(p, clip_start, clip_end, sr)
         else:
-            data, stem_sr = sf.read(str(p), dtype="float32", always_2d=True)
-            stereo = ensure_stereo(data)
-            if int(stem_sr) != sr:
-                stereo = resample_stereo(stereo, int(stem_sr), sr)
+            def _read_full(path: Path = p) -> np.ndarray:
+                data, stem_sr = sf.read(str(path), dtype="float32", always_2d=True)
+                st_arr = ensure_stereo(data)
+                if int(stem_sr) != sr:
+                    st_arr = resample_stereo(st_arr, int(stem_sr), sr)
+                return st_arr
+
+            stereo = get_cached_stem_audio(p, sr, _read_full)
         buffers[stem] = stereo
 
     max_len = max(len(buf) for buf in buffers.values())

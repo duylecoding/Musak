@@ -38,7 +38,7 @@ class FakeAudio extends EventTarget {
   }
 }
 
-function makeProject(renderVersion: number): ProjectState {
+function makeProject(renderVersion: number, stemsStatus: 'none' | 'ready' = 'none'): ProjectState {
   return {
     id: 'proj_1',
     name: 'Test',
@@ -55,12 +55,20 @@ function makeProject(renderVersion: number): ProjectState {
       beats: [0, 0.5, 1, 1.5],
       sections: [],
       lyric_hooks: [],
-      stems_status: 'none',
+      stems_status: stemsStatus,
       stems_error: null,
-      stems: [],
+      stems: stemsStatus === 'ready' ? ['vocals', 'drums', 'bass', 'other'] : [],
       audio_url: '/api/projects/proj_1/audio/main',
       rendered_url: '/api/projects/proj_1/audio/rendered',
-      stem_urls: {},
+      stem_urls:
+        stemsStatus === 'ready'
+          ? {
+              vocals: '/api/projects/proj_1/audio/stem/vocals',
+              drums: '/api/projects/proj_1/audio/stem/drums',
+              bass: '/api/projects/proj_1/audio/stem/bass',
+              other: '/api/projects/proj_1/audio/stem/other',
+            }
+          : {},
     },
     references: [],
     edits: [],
@@ -157,5 +165,54 @@ describe('usePlaybackEngine & timeline zoom ticks', () => {
     const ticks16x = computeRulerTicks(180, 16);
     expect(ticks8x[1] - ticks8x[0]).toBe(2);
     expect(ticks16x[1] - ticks16x[0]).toBe(1);
+  });
+
+  it('mutes vocals stem via stem playback instead of falling back to full unmuted mix', async () => {
+    const playheadRef = { current: 0 };
+    const playheadLineRef = { current: document.createElement('div') };
+    const playheadDiamondRef = { current: document.createElement('div') };
+    const proj = makeProject(1, 'ready');
+
+    const { result } = renderHook(() =>
+      usePlaybackEngine({
+        project: proj,
+        abMode: 'remix',
+        selection: null,
+        trackDuration: 120,
+        playheadRef,
+        playheadLineRef,
+        playheadDiamondRef,
+      })
+    );
+
+    // 4 stem Audio elements (vocals, drums, bass, other) + 1 mix Audio element
+    expect(createdAudios.length).toBe(5);
+    const vocalsAudio = createdAudios.find((a) => a.src.includes('/audio/stem/vocals'))!;
+    const drumsAudio = createdAudios.find((a) => a.src.includes('/audio/stem/drums'))!;
+    const mixAudio = createdAudios.find((a) => a.src.includes('/audio/rendered'))!;
+    expect(vocalsAudio).toBeDefined();
+    expect(drumsAudio).toBeDefined();
+    expect(mixAudio).toBeDefined();
+
+    // Mute vocals and start playback
+    act(() => {
+      result.current.updateStemChannel('vocals', { muted: true });
+    });
+    expect(result.current.isStemPreviewActive).toBe(true);
+    expect(vocalsAudio.muted).toBe(true);
+    expect(drumsAudio.muted).toBe(false);
+
+    await act(async () => {
+      result.current.handlePlayPause();
+    });
+
+    // Stem playback must be active with vocals muted, while full mix stays paused
+    expect(result.current.isPlaying).toBe(true);
+    expect(mixAudio.paused).toBe(true);
+    expect(drumsAudio.paused).toBe(false);
+    expect(vocalsAudio.muted).toBe(true);
+    // In remix mode, stem playback must stream remixed stems (mode=remix&v=1) so borrowed layers keep playing!
+    expect(drumsAudio.src).toContain('mode=remix');
+    expect(drumsAudio.src).toContain('v=1');
   });
 });

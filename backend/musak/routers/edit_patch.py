@@ -71,6 +71,30 @@ def _apply_op_field_updates(op: EditOperation, body: UpdateEditRequest, is_compo
     if op.type == "beat_repeat" and body.division_beats is not None:
         op.division_beats = round(float(body.division_beats), 4)
 
+    if op.type == "sidechain_pump":
+        if body.depth is not None:
+            op.depth = round(float(body.depth), 3)
+        if body.division_beats is not None:
+            op.division_beats = round(float(body.division_beats), 4)
+
+    if op.type == "stereo_wash":
+        if body.width is not None:
+            op.width = round(float(body.width), 3)
+        if body.chorus_mix is not None:
+            op.chorus_mix = round(float(body.chorus_mix), 3)
+
+    if op.type == "add_sfx" and body.musical_key is not None:
+        op.musical_key = body.musical_key
+
+    if body.apply_to_layers is not None and op.type in (
+        "sidechain_pump",
+        "filter_sweep",
+        "vinyl_brake",
+        "beat_repeat",
+        "stereo_wash",
+    ):
+        op.apply_to_layers = bool(body.apply_to_layers)
+
     if op.type == "repeat_section" and body.repeat_count is not None:
         op.repeat_count = int(body.repeat_count)
 

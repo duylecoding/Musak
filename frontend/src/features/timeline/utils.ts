@@ -57,6 +57,8 @@ export function getClipEmoji(edit: EditBlock): string {
   if (first.type === 'reverb_throw') return '✨';
   if (first.type === 'lofi_eq') return '📻';
   if (first.type === 'bass_boost') return '🔥';
+  if (first.type === 'sidechain_pump') return '💓';
+  if (first.type === 'stereo_wash') return '🌌';
   if (first.type === 'tempo_pitch') return '⏱️';
   return '🎛️';
 }

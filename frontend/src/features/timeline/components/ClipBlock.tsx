@@ -30,7 +30,7 @@ const TONE_CLASS_MAP: Record<ClipTone, string> = {
   reference: styles.toneReference,
 };
 
-export const ClipBlock: React.FC<ClipBlockProps> = ({
+export const ClipBlock: React.FC<ClipBlockProps> = React.memo(({
   edit,
   tone,
   trackDuration,
@@ -91,4 +91,4 @@ export const ClipBlock: React.FC<ClipBlockProps> = ({
       />
     </div>
   );
-};
+});

@@ -10,6 +10,7 @@ export interface ClipFxControlsProps {
 
 const DELAY_DIVS = [{ label: '1/4', value: 0.25 }, { label: '1/2', value: 0.5 }, { label: '3/4', value: 0.75 }, { label: '1 Beat', value: 1 }] as const;
 const STUTTER_DIVS = [{ label: '1/8', value: 0.125 }, { label: '1/4', value: 0.25 }, { label: '1/2', value: 0.5 }] as const;
+const PUMP_DIVS = [{ label: '1/2 Beat', value: 0.5 }, { label: '1 Beat', value: 1 }] as const;
 
 const FxSliderRow: React.FC<{
   label: string; displayValue: string; min: number; max: number; step: number;
@@ -45,12 +46,17 @@ export const ClipFxControls: React.FC<ClipFxControlsProps> = ({ op, busy, onUpda
   const [warmth, setWarmth] = useState(op.high_cut_hz ?? 3400);
   const [boost, setBoost] = useState(op.gain_db ?? 6);
   const [cutoff, setCutoff] = useState(op.cutoff_hz ?? 140);
+  const [depth, setDepth] = useState(op.depth ?? 0.7);
+  const [width, setWidth] = useState(op.width ?? 1.45);
+  const [chorusMix, setChorusMix] = useState(op.chorus_mix ?? 0.35);
 
   useEffect(() => {
     setWet(op.wet_level ?? 0.48); setRoom(op.room_size ?? 0.85);
     setMix(op.mix ?? 0.45); setFeedback(op.feedback ?? 0.45);
     setDrive(op.drive_db ?? 4); setWarmth(op.high_cut_hz ?? 3400);
     setBoost(op.gain_db ?? 6); setCutoff(op.cutoff_hz ?? 140);
+    setDepth(op.depth ?? 0.7); setWidth(op.width ?? 1.45);
+    setChorusMix(op.chorus_mix ?? 0.35);
   }, [op]);
 
   if (op.type === 'filter_sweep') {
@@ -151,6 +157,36 @@ export const ClipFxControls: React.FC<ClipFxControlsProps> = ({ op, busy, onUpda
             </button>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (op.type === 'sidechain_pump') {
+    const curDiv = op.division_beats ?? 1.0;
+    return (
+      <div className={styles.section}>
+        <span className={styles.groupLabel}>Pump Rate</span>
+        <div className={styles.chipRow}>
+          {PUMP_DIVS.map((d) => (
+            <button
+              key={d.value} type="button" disabled={busy} aria-pressed={Math.abs(curDiv - d.value) < 0.01}
+              onClick={() => void onUpdate({ division_beats: d.value })}
+              className={Math.abs(curDiv - d.value) < 0.01 ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+        <FxSliderRow label="Pump Depth" displayValue={`${Math.round(depth * 100)}%`} min={0.15} max={0.9} step={0.05} value={depth} disabled={busy} onDraft={setDepth} onCommit={(v) => void onUpdate({ depth: v })} />
+      </div>
+    );
+  }
+
+  if (op.type === 'stereo_wash') {
+    return (
+      <div className={styles.section}>
+        <FxSliderRow label="Stereo Width" displayValue={`${Math.round(width * 100)}%`} min={1.0} max={2.0} step={0.05} value={width} disabled={busy} onDraft={setWidth} onCommit={(v) => void onUpdate({ width: v })} />
+        <FxSliderRow label="Chorus Shimmer" displayValue={`${Math.round(chorusMix * 100)}%`} min={0} max={0.75} step={0.05} value={chorusMix} disabled={busy} onDraft={setChorusMix} onCommit={(v) => void onUpdate({ chorus_mix: v })} />
       </div>
     );
   }

@@ -7,7 +7,7 @@ import styles from './TimelineRuler.module.css';
 export interface TimelineRulerProps {
   trackDuration: number;
   zoom: number;
-  displayTime: number;
+  currentTimeRef: React.MutableRefObject<number>;
   sections: Section[];
   cues?: CueMarker[];
   selection: TimeSelection | null;
@@ -43,8 +43,8 @@ function getCueToneClass(cue: CueMarker, index: number): string {
   return CUE_TONE_CLASSES[index % CUE_TONE_CLASSES.length];
 }
 
-export const TimelineRuler: React.FC<TimelineRulerProps> = ({
-  trackDuration, zoom, displayTime, sections, cues = [], selection,
+export const TimelineRuler: React.FC<TimelineRulerProps> = React.memo(({
+  trackDuration, zoom, currentTimeRef, sections, cues = [], selection,
   playheadDiamondRef, onSeekToTime, onSelectSection, onSelectSpan, onDeleteCue,
 }) => {
   const rulerTicks = useMemo(() => computeRulerTicks(trackDuration, zoom), [trackDuration, zoom]);
@@ -71,7 +71,7 @@ export const TimelineRuler: React.FC<TimelineRulerProps> = ({
     window.addEventListener('pointercancel', onUp);
   };
 
-  const playheadPct = trackDuration > 0 ? Math.max(0, Math.min(100, (displayTime / trackDuration) * 100)) : 0;
+  const playheadPct = trackDuration > 0 ? Math.max(0, Math.min(100, (currentTimeRef.current / trackDuration) * 100)) : 0;
 
   return (
     <div className={styles.stickyRow}>
@@ -107,8 +107,9 @@ export const TimelineRuler: React.FC<TimelineRulerProps> = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (e.shiftKey && onSelectSpan) {
-                        const s = Math.min(displayTime, cue.time);
-                        const end = Math.max(displayTime, cue.time);
+                        const nowTime = currentTimeRef.current;
+                        const s = Math.min(nowTime, cue.time);
+                        const end = Math.max(nowTime, cue.time);
                         if (end - s >= 0.2) onSelectSpan(s, end);
                       } else {
                         onSeekToTime(cue.time);
@@ -163,4 +164,4 @@ export const TimelineRuler: React.FC<TimelineRulerProps> = ({
       </div>
     </div>
   );
-};
+});

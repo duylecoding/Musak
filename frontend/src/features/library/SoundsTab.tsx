@@ -22,6 +22,7 @@ export const SoundsTab: React.FC = () => {
   const sfxAudioRef = useRef<HTMLAudioElement | null>(null);
   const hasMainTrack = Boolean(currentProject?.main_track);
   const mainTrackBpm = currentProject?.main_track?.bpm ?? null;
+  const mainTrackKey = currentProject?.main_track?.key ?? undefined;
 
   const releaseAudio = useCallback((audio: HTMLAudioElement | null) => {
     if (!audio) return;
@@ -51,7 +52,7 @@ export const SoundsTab: React.FC = () => {
     if (!audio) return;
 
     releaseAudio(audio);
-    audio.src = getSfxPreviewUrl(item.id, mainTrackBpm ?? undefined, item.default_duration);
+    audio.src = getSfxPreviewUrl(item.id, mainTrackBpm ?? undefined, item.default_duration, mainTrackKey);
     setAuditioningSfxId(item.id);
     try {
       const p = audio.play();

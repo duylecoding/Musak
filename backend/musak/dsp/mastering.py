@@ -52,16 +52,14 @@ def apply_master_preset(
     if preset == "club":
         board = pb.Pedalboard(
             [
-                pb.LowShelfFilter(cutoff_frequency_hz=80.0, gain_db=3.0),
-                pb.HighShelfFilter(cutoff_frequency_hz=9000.0, gain_db=2.0),
-                pb.Compressor(threshold_db=-18.0, ratio=3.5, attack_ms=8.0, release_ms=80.0),
-                pb.Limiter(threshold_db=-1.0, release_ms=60.0),
+                pb.LowShelfFilter(cutoff_frequency_hz=80.0, gain_db=2.2),
+                pb.HighShelfFilter(cutoff_frequency_hz=9500.0, gain_db=1.5),
+                pb.Compressor(threshold_db=-16.0, ratio=2.4, attack_ms=12.0, release_ms=90.0),
+                pb.Gain(gain_db=2.0),
+                pb.Limiter(threshold_db=-1.0, release_ms=70.0),
             ]
         )
         out = _run_pedalboard(board, audio, sr)
-        rms = float(np.sqrt(np.mean(out**2)))
-        if rms > 1e-4:
-            out = out * min(2.0, max(1.0, 0.316 / rms))
         return soft_limit(out)
 
     if preset == "warm":

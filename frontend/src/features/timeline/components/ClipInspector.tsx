@@ -9,7 +9,16 @@ import { ClipBorrowControls } from './ClipBorrowControls';
 import { ClipFxControls } from './ClipFxControls';
 import styles from './ClipInspector.module.css';
 
-const FX_TYPES = new Set(['filter_sweep', 'reverb_throw', 'delay_throw', 'lofi_eq', 'bass_boost', 'beat_repeat']);
+const FX_TYPES = new Set([
+  'filter_sweep',
+  'reverb_throw',
+  'delay_throw',
+  'lofi_eq',
+  'bass_boost',
+  'beat_repeat',
+  'sidechain_pump',
+  'stereo_wash',
+]);
 const FADE_TYPES = new Set(['borrow_stem', 'add_sfx', 'stem_gain']);
 const FADE_OPTIONS = [
   { label: 'None', ms: 0 },

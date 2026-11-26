@@ -70,6 +70,21 @@ class UpdateEditRequest(BaseModel):
     loop_to_fit: bool | None = None
     division_beats: float | None = Field(default=None, ge=0.0625, le=2.0)
     repeat_count: int | None = Field(default=None, ge=2, le=4)
+    depth: float | None = Field(default=None, ge=0.05, le=0.95)
+    width: float | None = Field(default=None, ge=0.5, le=2.0)
+    chorus_mix: float | None = Field(default=None, ge=0.0, le=0.8)
+    apply_to_layers: bool | None = None
+    musical_key: str | None = Field(default=None, max_length=32)
+
+    @field_validator("musical_key")
+    @classmethod
+    def _clean_musical_key(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("musical_key cannot be empty or whitespace.")
+        return cleaned
 
     @field_validator("title")
     @classmethod

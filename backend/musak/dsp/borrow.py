@@ -8,11 +8,13 @@ from pathlib import Path
 
 import librosa
 import numpy as np
+import pedalboard as pb
 import soundfile as sf
 
 from musak.audio_analysis import ensure_stereo, resample_stereo, semitone_diff_between_keys
 from musak.config import STEM_NAMES
-from musak.dsp.utils import _asymmetric_cosine_mask, _cosine_fade_mask, snap_range_to_beats
+from musak.dsp.cache import get_cached_borrowed_clip
+from musak.dsp.utils import _asymmetric_cosine_mask, _cosine_fade_mask, _read_audio_slice, snap_range_to_beats
 from musak.models import EditOperation, ProjectState
 from musak.storage import ProjectStore
 
@@ -70,7 +72,7 @@ def _apply_borrow_stem(
     full_mix: np.ndarray | None,
     sr: int,
     op: EditOperation,
-) -> tuple[dict[str, np.ndarray] | None, np.ndarray | None, np.ndarray | None]:
+) -> tuple[dict[str, np.ndarray] | None, np.ndarray | None, tuple[int, np.ndarray] | None]:
     """Load, time-stretch, pitch-shift, and blend a borrowed clip from a reference track."""
     if not op.ref_id or project.main_track is None:
         return stem_buffers, full_mix, None
@@ -95,40 +97,67 @@ def _apply_borrow_stem(
         logger.warning("borrow_stem skipped: reference '%s' has no local audio downloaded.", ref.id)
         return stem_buffers, full_mix, None
 
-    ref_audio, ref_sr = sf.read(str(src_path), dtype="float32", always_2d=True)
-    ref_stereo = ensure_stereo(ref_audio)
-    if int(ref_sr) != sr:
-        ref_stereo = resample_stereo(ref_stereo, int(ref_sr), sr)
-
-    ref_dur = len(ref_stereo) / float(sr)
-    r_start = max(0.0, min(float(op.ref_start if op.ref_start is not None else 0.0), ref_dur))
-    r_end = max(r_start, min(float(op.ref_end if op.ref_end is not None else ref_dur), ref_dur))
-    rs_idx = int(round(r_start * sr))
-    re_idx = int(round(r_end * sr))
-    if re_idx <= rs_idx:
+    info = sf.info(str(src_path))
+    ref_dur = float(info.frames) / float(info.samplerate) if info.samplerate > 0 else 0.0
+    if ref_dur <= 0.0:
         return stem_buffers, full_mix, None
 
-    clip = ref_stereo[rs_idx:re_idx].copy()
+    r_start = max(0.0, min(float(op.ref_start if op.ref_start is not None else 0.0), ref_dur))
+    r_end = max(r_start, min(float(op.ref_end if op.ref_end is not None else ref_dur), ref_dur))
+    if r_end <= r_start:
+        return stem_buffers, full_mix, None
 
-    # BPM time-stretching (half/double-time aware so e.g. 140 vs 70 BPM borrows at ~1.0x)
+    # BPM time-stretching + musical key pitch-shifting (cached & single-pass stereo Rubber Band)
     match_bpm = True if op.match_bpm is None else bool(op.match_bpm)
+    rate = 1.0
     if match_bpm and ref.bpm and project.main_track.bpm and ref.bpm > 20.0 and project.main_track.bpm > 20.0:
-        rate = compute_effective_borrow_rate(project.main_track.bpm, ref.bpm)
-        if abs(rate - 1.0) > 0.01 and len(clip) >= 256:
-            left = librosa.effects.time_stretch(clip[:, 0].astype(np.float32), rate=rate)
-            right = librosa.effects.time_stretch(clip[:, 1].astype(np.float32), rate=rate)
-            min_len = min(len(left), len(right))
-            clip = np.stack([left[:min_len], right[:min_len]], axis=-1).astype(np.float32)
+        cand_rate = compute_effective_borrow_rate(project.main_track.bpm, ref.bpm)
+        if abs(cand_rate - 1.0) > 0.01:
+            rate = cand_rate
 
-    # Musical key pitch-shifting
     match_key = True if op.match_key is None else bool(op.match_key)
-    if match_key and ref.key and project.main_track.key:
+    semitones = 0
+    if match_key and ref_stem != "drums" and ref.key and project.main_track.key:
         semitones = semitone_diff_between_keys(ref.key, project.main_track.key)
-        if semitones != 0 and len(clip) >= 256:
-            left = librosa.effects.pitch_shift(clip[:, 0].astype(np.float32), sr=sr, n_steps=float(semitones))
-            right = librosa.effects.pitch_shift(clip[:, 1].astype(np.float32), sr=sr, n_steps=float(semitones))
+
+    def _build_processed_clip() -> np.ndarray:
+        raw = _read_audio_slice(src_path, r_start, r_end, sr)
+        if len(raw) < 256 or (abs(rate - 1.0) <= 0.01 and semitones == 0):
+            return raw
+
+        if hasattr(pb, "time_stretch"):
+            try:
+                ch_first = np.ascontiguousarray(raw.T, dtype=np.float32)
+                proc = pb.time_stretch(
+                    ch_first,
+                    float(sr),
+                    stretch_factor=float(rate),
+                    pitch_shift_in_semitones=float(semitones),
+                    high_quality=True,
+                    transient_mode="crisp",
+                    retain_phase_continuity=True,
+                    preserve_formants=(ref_stem == "vocals"),
+                )
+                return np.ascontiguousarray(proc.T, dtype=np.float32)
+            except Exception as exc:
+                logger.warning("pedalboard.time_stretch fallback to librosa: %s", exc)
+
+        out_clip = raw
+        if abs(rate - 1.0) > 0.01:
+            left = librosa.effects.time_stretch(out_clip[:, 0].astype(np.float32), rate=rate)
+            right = librosa.effects.time_stretch(out_clip[:, 1].astype(np.float32), rate=rate)
             min_len = min(len(left), len(right))
-            clip = np.stack([left[:min_len], right[:min_len]], axis=-1).astype(np.float32)
+            out_clip = np.stack([left[:min_len], right[:min_len]], axis=-1).astype(np.float32)
+        if semitones != 0:
+            left = librosa.effects.pitch_shift(out_clip[:, 0].astype(np.float32), sr=sr, n_steps=float(semitones))
+            right = librosa.effects.pitch_shift(out_clip[:, 1].astype(np.float32), sr=sr, n_steps=float(semitones))
+            min_len = min(len(left), len(right))
+            out_clip = np.stack([left[:min_len], right[:min_len]], axis=-1).astype(np.float32)
+        return out_clip
+
+    clip = get_cached_borrowed_clip(src_path, r_start, r_end, sr, rate, semitones, ref_stem, _build_processed_clip)
+    if len(clip) == 0:
+        return stem_buffers, full_mix, None
 
     main_len = len(full_mix) if full_mix is not None else len(next(iter(stem_buffers.values())))  # type: ignore[arg-type]
     main_dur = main_len / float(sr)
@@ -178,6 +207,4 @@ def _apply_borrow_stem(
         duck_gain = 0.0 if all_replaced else 0.5
         full_mix[ts_idx : ts_idx + target_len] *= 1.0 + duck_mask * (duck_gain - 1.0)
 
-    overlay = np.zeros((main_len, 2), dtype=np.float32)
-    overlay[ts_idx : ts_idx + target_len] = fitted
-    return stem_buffers, full_mix, overlay
+    return stem_buffers, full_mix, (ts_idx, fitted)
