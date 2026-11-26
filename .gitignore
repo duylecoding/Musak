@@ -1,0 +1,29 @@
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Node / Electron / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-electron/
+frontend/release/
+
+# Secrets & Environment
+.env
+.env.*
+*.key
+
+# Local media / caches / user workspace data
+.musak_data/
+*.wav
+*.mp3
+*.flac
+*.m4a
+*.webm
+*.log
+.DS_Store
+Thumbs.db
