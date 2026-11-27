@@ -1,7 +1,7 @@
-# Musak Internal API Contract (v0.5)
+# Musak Internal API Contract (v1.0)
 
 Base URL: `http://127.0.0.1:8765`
-CORS: Allow `http://localhost:5173`, `http://127.0.0.1:5173`, `file://`, and `null` (`allow_credentials=False`, `expose_headers=["Content-Disposition"]`).
+CORS: Allow `http://localhost:5173`, `http://127.0.0.1:5173`, `http://tauri.localhost`, `https://tauri.localhost`, `tauri://localhost`, `file://`, and `null` (`allow_credentials=False`, `expose_headers=["Content-Disposition"]`).
 
 ## 1. Health & Settings
 - `GET /api/health`
@@ -128,10 +128,11 @@ interface EditOperation {
 - `POST /api/projects/{project_id}/main-track/cues` -> Body `{ label: string, time: number, color?: string }` -> drops manual cue marker -> `ProjectState`
 - `PATCH /api/projects/{project_id}/main-track/cues/{cue_id}` -> Body `{ label?: string, time?: number, color?: string }` -> updates cue marker -> `ProjectState`
 - `DELETE /api/projects/{project_id}/main-track/cues/{cue_id}` -> removes cue marker -> `ProjectState`
-- `GET /api/projects/{project_id}/peaks?buckets=400` -> `WaveformPeaksResponse` (fast normalized waveform peaks for multi-lane canvas rendering)
+- `GET /api/projects/{project_id}/peaks?buckets=400` -> `WaveformPeaksResponse` (cached downsampled waveform peaks for multi-lane canvas rendering)
+- `GET /api/projects/{project_id}/engine-manifest` -> `{ project_id, track_id, sample_rate, duration, bpm, key, render_version, main_wav, stems, clips }` (local WAV paths & content-hashed Rubber Band / SFX clips for the native Rust real-time audio engine)
 - `GET /api/projects/{project_id}/audio/main` -> audio stream (`Cache-Control: no-store`)
 - `GET /api/projects/{project_id}/audio/rendered` -> rendered remix stream (`Cache-Control: no-store`)
-- `GET /api/projects/{project_id}/audio/stem/{stem_name}` -> stem audio stream
+- `GET /api/projects/{project_id}/audio/stem/{stem_name}?mode=original|remix` -> original or remixed stem audio stream
 - `GET /api/projects/{project_id}/audio/preview/{proposal_id}?t=...` -> fast sliced proposal preview stream
 - `POST /api/projects/{project_id}/export` -> Body `{ format?: "wav"|"mp3"|"zip", target?: "remix"|"instrumental"|"vocals"|"stems_zip", master_preset?: "off"|"balanced"|"club"|"warm" }`
 
@@ -151,6 +152,7 @@ interface EditOperation {
 - `POST /api/projects/{project_id}/mashup` -> Body `{ ref_id, mode, start?, end?, ref_start?, ref_end? }` -> `ProjectState`
 
 ## 6. Edits, Drag/Resize Updates, Proposal Tuning & History
+*(All edit mutation endpoints accept optional `?skip_render=1` for native Tauri/Rust clients so edit JSON persists in `<2 ms` without offline WAV re-rendering; `/export` renders on demand if needed.)*
 - `POST /api/projects/{project_id}/edits` -> Body `{ title, description, start, end, operations }` -> `ProjectState`
 - `POST /api/projects/{project_id}/edits/apply-proposal/{proposal_id}` -> `ProjectState`
 - `POST /api/projects/{project_id}/proposals/{proposal_id}/tune` -> Body `{ intensity?, keep_vocals_clear?, shift_beats? }` -> `ProjectState`
@@ -167,3 +169,12 @@ interface EditOperation {
   - Body: `{ message: string, selection?: TimeSelection | null, reference_ids?: string[] }` (supports `selection.lane`!)
   - Returns: `ProjectState` (with fast <0.3s sliced proposal preview WAVs)
 - `POST /api/voice/transcribe` (multipart `file`) -> `{ text: string }`
+
+## 8. Native Tauri v2 / Rust Real-Time Audio IPC Commands (`src-tauri/`)
+- `audio_load_manifest({ manifest, edits, abMode, stemMixer })` -> `TransportState`
+- `audio_sync_timeline({ edits, abMode, stemMixer, loopRange })` -> `TransportState`
+- `audio_set_stem_mixer({ stemMixer })` -> `void`
+- `audio_play({ startSecs })` -> `TransportState`
+- `audio_pause()` -> `TransportState`
+- `audio_seek({ secs })` -> `TransportState`
+- `audio_transport_state()` -> `{ playing, current_time, duration, sample_rate, device_ready }`

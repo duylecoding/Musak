@@ -1,44 +1,46 @@
 # Musak
 
-Local Windows AI-assisted music remixing studio powered by **Gemini**, **Demucs (CUDA GPU)**, **Pedalboard**, and **WaveSurfer**.
+Native Windows music remixing studio built with **Tauri v2**, a lock-free **Rust real-time audio engine (`musak-audio`)**, **React + CSS Modules**, and a slim local **Python CUDA sidecar** (Demucs stems, Rubber Band time/pitch stretching, `yt-dlp`, mastering exports, and optional Gemini AI co-pilot).
 
-## Features
-- **Reference Shelf (Inspiration Board):** Add local MP3/WAV files or paste public YouTube URLs. Play embedded YouTube previews, pin standout moments (manually or with Gemini **Auto-Tag**), and extract stems on demand.
-- **Main Track Canvas:** Auto-detects BPM, musical key, beat grid, and song sections (`Intro`, `Verse`, `Buildup`, `Drop`, `Chorus`, `Outro`). Drag to highlight any moment, toggle **Before (Original) / After (Remix)** A/B playback, inspect collapsible 4-stem lanes (`Vocals`, `Drums`, `Bass`, `Other`), Undo/Redo, and export WAV/MP3.
-- **Gemini Producer Chat:** Highlight a moment, attach `@Reference` tracks, and describe the vibe in plain English. Gemini listens to your clip + YouTube/audio references and returns 2–3 clickable **Preview / Apply** options (both *Style Match* on your stems and *Mashup* borrowing tempo/key-matched reference stems).
-- **Private & Local-First:** Your Gemini API key is encrypted by Windows DPAPI (`safeStorage`) outside the repository (`%APPDATA%\musak-frontend\gemini_key.enc`) and never committed to git.
+## Architecture
+- **`src-tauri/crates/musak-audio/`**: Lock-free real-time multi-track audio engine (`cpal` WASAPI output, `arc-swap` atomic timeline hot-swapping, `hound` WAV loader, real-time sidechain pump, Freeverb reverb, biquad filter sweeps, stereo widening, decoupled main-stem mute/solo + extra layers).
+- **`src-tauri/`**: Tauri v2 desktop shell (~7.7 MB native Windows binary with embedded frontend) + automatic Python sidecar lifecycle management.
+- **`frontend/`**: Modular React + TypeScript + semantic CSS Modules multi-track timeline (`Vocals`, `Drums`, `Bass`, `Melody`, draggable track-label column, 1×–16× zoom, clip drag/resize, cue markers, sound & reference layers, collapsible Gemini side panel).
+- **`backend/`**: Local FastAPI sidecar on `127.0.0.1:8765` handling GPU stem separation (Demucs/CUDA), YouTube oEmbed/`yt-dlp`, harmonic CQT key/BPM analysis, Rubber Band clip preparation (`/engine-manifest`), mastered WAV/MP3/stems-ZIP export, and optional Gemini Producer Chat & voice transcription.
 
 ## Quick Start (Windows)
 
-### Launch the Desktop App
-Double-click `start-musak.bat` in the repo root, or run in PowerShell:
-```powershell
-cd C:\Users\duyle\Documents\vscode\Musak\frontend
-& ".\node_modules\.bin\electron.cmd" .
-```
-Electron automatically starts the local Python audio backend (`backend/.venv`) and stops it when you close the app.
+### Launch the Native App
+Double-click `start-musak.bat` in the repo root (or run `src-tauri\target\release\musak.exe`). The app automatically starts the local Python CUDA sidecar and shuts it down on exit.
 
-### Development Mode (Hot Reload)
+### Build from Source
 ```powershell
-# Terminal 1 — Python backend
-C:\Users\duyle\Documents\vscode\Musak\backend\.venv\Scripts\python.exe C:\Users\duyle\Documents\vscode\Musak\backend\run_server.py
-
-# Terminal 2 — Vite + Electron
+# 1. Build frontend bundle (embedded into musak.exe)
 cd C:\Users\duyle\Documents\vscode\Musak\frontend
-& "C:\Program Files\nodejs\npm.cmd" run dev
+& "C:\Program Files\nodejs\npm.cmd" run build
+
+# 2. Build native Tauri + Rust release binary
+cd C:\Users\duyle\Documents\vscode\Musak\src-tauri
+cargo build --release --bin musak
 ```
 
-### Setting Your Gemini API Key
-1. Get a free Google AI Studio key at https://aistudio.google.com/apikey (no credit card required for the free tier; Google AI Pro subscribers can also claim monthly developer credits).
-2. Click **Settings** (gear icon) in Musak and paste your key.
+### Optional Gemini AI Setup
+Musak works fully standalone without an API key, and the Gemini side panel can be hidden from the top bar. To enable Gemini Producer Chat, Voice input, or Lyric Hooks:
+1. Create a key at https://aistudio.google.com/apikey
+2. Open **Settings** (gear icon) in Musak and paste your key (held in local backend memory only).
 
 ## Tests & Verification
 ```powershell
-# Backend tests
-& "C:\Users\duyle\Documents\vscode\Musak\backend\.venv\Scripts\pytest.exe" -v "C:\Users\duyle\Documents\vscode\Musak\backend\tests"
+# Rust real-time audio engine tests
+cd C:\Users\duyle\Documents\vscode\Musak\src-tauri
+cargo test -p musak-audio
 
-# Frontend typecheck & production build
+# Backend tests
+& "C:\Users\duyle\Documents\vscode\Musak\backend\.venv\Scripts\pytest.exe" -q "C:\Users\duyle\Documents\vscode\Musak\backend\tests"
+
+# Frontend typecheck, unit/component tests & production build
 cd C:\Users\duyle\Documents\vscode\Musak\frontend
 & "C:\Program Files\nodejs\npm.cmd" run typecheck
+& "C:\Program Files\nodejs\npm.cmd" test
 & "C:\Program Files\nodejs\npm.cmd" run build
 ```
