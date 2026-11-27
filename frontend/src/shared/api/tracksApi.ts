@@ -100,6 +100,30 @@ export function deleteCueMarker(projectId: string, cueId: string): Promise<Proje
   );
 }
 
+export interface PreparedClipEntry {
+  path: string;
+  stem_bucket: string;
+}
+
+export interface EngineManifestResponse {
+  project_id: string;
+  track_id: string;
+  sample_rate: number;
+  duration: number;
+  bpm: number;
+  key: string;
+  render_version: number;
+  main_wav: string;
+  stems: Record<string, string>;
+  clips: Record<string, PreparedClipEntry>;
+}
+
+export function getEngineManifest(projectId: string): Promise<EngineManifestResponse> {
+  return requestJson<EngineManifestResponse>(
+    `/api/projects/${encodeURIComponent(projectId)}/engine-manifest`
+  );
+}
+
 export function getProjectPeaks(projectId: string, buckets = 500): Promise<WaveformPeaksResponse> {
   return requestJson<WaveformPeaksResponse>(
     `/api/projects/${encodeURIComponent(projectId)}/peaks?buckets=${encodeURIComponent(String(buckets))}`

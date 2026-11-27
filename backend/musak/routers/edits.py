@@ -33,7 +33,7 @@ router = APIRouter(tags=["edits"])
 
 
 @router.post("/api/projects/{project_id}/edits", response_model=ProjectState)
-def create_edit(project_id: str, body: CreateEditRequest) -> ProjectState:
+def create_edit(project_id: str, body: CreateEditRequest, skip_render: bool = False) -> ProjectState:
     validate_id(project_id, "project_id")
     if store.get_project(project_id).main_track is None:
         raise HTTPException(status_code=400, detail="Upload a main track before adding edits.")
@@ -56,7 +56,7 @@ def create_edit(project_id: str, body: CreateEditRequest) -> ProjectState:
         proj.redo_stack.clear()
         return True
 
-    return _mutate_and_render(project_id, _apply)
+    return _mutate_and_render(project_id, _apply, skip_render=skip_render)
 
 
 @router.post("/api/projects/{project_id}/edits/apply-proposal/{proposal_id}", response_model=ProjectState)
@@ -129,7 +129,9 @@ def tune_proposal(project_id: str, proposal_id: str, body: TuneProposalRequest) 
 
 
 @router.patch("/api/projects/{project_id}/edits/{edit_id}", response_model=ProjectState)
-def patch_edit(project_id: str, edit_id: str, body: UpdateEditRequest) -> ProjectState:
+def patch_edit(
+    project_id: str, edit_id: str, body: UpdateEditRequest, skip_render: bool = False
+) -> ProjectState:
     validate_id(project_id, "project_id")
     validate_id(edit_id, "edit_id")
     if not any(e.id == edit_id for e in store.get_project(project_id).edits):
@@ -142,7 +144,7 @@ def patch_edit(project_id: str, edit_id: str, body: UpdateEditRequest) -> Projec
         apply_patch_to_edit(proj, target, body)
         return True
 
-    return _mutate_and_render(project_id, _patch)
+    return _mutate_and_render(project_id, _patch, skip_render=skip_render)
 
 
 @router.post("/api/projects/{project_id}/edits/{edit_id}/duplicate", response_model=ProjectState)
@@ -150,6 +152,7 @@ def duplicate_edit(
     project_id: str,
     edit_id: str,
     body: DuplicateEditRequest | None = Body(default=None),
+    skip_render: bool = False,
 ) -> ProjectState:
     validate_id(project_id, "project_id")
     validate_id(edit_id, "edit_id")
@@ -170,11 +173,11 @@ def duplicate_edit(
         proj.redo_stack.clear()
         return True
 
-    return _mutate_and_render(project_id, _duplicate)
+    return _mutate_and_render(project_id, _duplicate, skip_render=skip_render)
 
 
 @router.delete("/api/projects/{project_id}/edits/{edit_id}", response_model=ProjectState)
-def delete_edit(project_id: str, edit_id: str) -> ProjectState:
+def delete_edit(project_id: str, edit_id: str, skip_render: bool = False) -> ProjectState:
     validate_id(project_id, "project_id")
     validate_id(edit_id, "edit_id")
     if not any(e.id == edit_id for e in store.get_project(project_id).edits):
@@ -188,10 +191,10 @@ def delete_edit(project_id: str, edit_id: str) -> ProjectState:
         _sync_proposal_applied_flags(proj, removed.source_proposal_id, False)
         return True
 
-    return _mutate_and_render(project_id, _delete)
+    return _mutate_and_render(project_id, _delete, skip_render=skip_render)
 
 
-def _step_history(project_id: str, undo: bool) -> ProjectState:
+def _step_history(project_id: str, undo: bool, skip_render: bool = False) -> ProjectState:
     validate_id(project_id, "project_id")
     store.get_project(project_id)
 
@@ -204,17 +207,17 @@ def _step_history(project_id: str, undo: bool) -> ProjectState:
         _sync_proposal_applied_flags(proj, item.source_proposal_id, not undo)
         return True
 
-    return _mutate_and_render(project_id, _mutate)
+    return _mutate_and_render(project_id, _mutate, skip_render=skip_render)
 
 
 @router.post("/api/projects/{project_id}/undo", response_model=ProjectState)
-def undo_edit(project_id: str) -> ProjectState:
-    return _step_history(project_id, undo=True)
+def undo_edit(project_id: str, skip_render: bool = False) -> ProjectState:
+    return _step_history(project_id, undo=True, skip_render=skip_render)
 
 
 @router.post("/api/projects/{project_id}/redo", response_model=ProjectState)
-def redo_edit(project_id: str) -> ProjectState:
-    return _step_history(project_id, undo=False)
+def redo_edit(project_id: str, skip_render: bool = False) -> ProjectState:
+    return _step_history(project_id, undo=False, skip_render=skip_render)
 
 
 @router.post("/api/projects/{project_id}/export")

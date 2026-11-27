@@ -1,3 +1,4 @@
+import { isTauriRuntime } from '../audio/nativeEngine';
 import { sanitizeFilename } from '../utils/format';
 import { downloadBlob, EXPORT_TIMEOUT_MS, requestJson } from './http';
 import type {
@@ -7,6 +8,10 @@ import type {
   ProjectState,
   ProposalTunePayload,
 } from './types';
+
+function skipRenderQuery(): string {
+  return isTauriRuntime() ? '?skip_render=1' : '';
+}
 
 export function createEdit(
   projectId: string,
@@ -18,11 +23,14 @@ export function createEdit(
     operations: EditOperation[];
   }
 ): Promise<ProjectState> {
-  return requestJson<ProjectState>(`/api/projects/${encodeURIComponent(projectId)}/edits`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  return requestJson<ProjectState>(
+    `/api/projects/${encodeURIComponent(projectId)}/edits${skipRenderQuery()}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }
+  );
 }
 
 export function applyProposal(projectId: string, proposalId: string): Promise<ProjectState> {
@@ -53,7 +61,7 @@ export function updateEdit(
   patch: EditUpdatePayload
 ): Promise<ProjectState> {
   return requestJson<ProjectState>(
-    `/api/projects/${encodeURIComponent(projectId)}/edits/${encodeURIComponent(editId)}`,
+    `/api/projects/${encodeURIComponent(projectId)}/edits/${encodeURIComponent(editId)}${skipRenderQuery()}`,
     {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -68,7 +76,7 @@ export function duplicateEdit(
   start?: number
 ): Promise<ProjectState> {
   return requestJson<ProjectState>(
-    `/api/projects/${encodeURIComponent(projectId)}/edits/${encodeURIComponent(editId)}/duplicate`,
+    `/api/projects/${encodeURIComponent(projectId)}/edits/${encodeURIComponent(editId)}/duplicate${skipRenderQuery()}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -79,21 +87,23 @@ export function duplicateEdit(
 
 export function deleteEdit(projectId: string, editId: string): Promise<ProjectState> {
   return requestJson<ProjectState>(
-    `/api/projects/${encodeURIComponent(projectId)}/edits/${encodeURIComponent(editId)}`,
+    `/api/projects/${encodeURIComponent(projectId)}/edits/${encodeURIComponent(editId)}${skipRenderQuery()}`,
     { method: 'DELETE' }
   );
 }
 
 export function undoEdit(projectId: string): Promise<ProjectState> {
-  return requestJson<ProjectState>(`/api/projects/${encodeURIComponent(projectId)}/undo`, {
-    method: 'POST',
-  });
+  return requestJson<ProjectState>(
+    `/api/projects/${encodeURIComponent(projectId)}/undo${skipRenderQuery()}`,
+    { method: 'POST' }
+  );
 }
 
 export function redoEdit(projectId: string): Promise<ProjectState> {
-  return requestJson<ProjectState>(`/api/projects/${encodeURIComponent(projectId)}/redo`, {
-    method: 'POST',
-  });
+  return requestJson<ProjectState>(
+    `/api/projects/${encodeURIComponent(projectId)}/redo${skipRenderQuery()}`,
+    { method: 'POST' }
+  );
 }
 
 export async function exportProjectAudio(

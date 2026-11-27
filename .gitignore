@@ -17,6 +17,9 @@ frontend/release/
 .env.*
 *.key
 
+# Rust / Tauri
+src-tauri/target/
+
 # Local media / caches / user workspace data
 .musak_data/
 *.wav

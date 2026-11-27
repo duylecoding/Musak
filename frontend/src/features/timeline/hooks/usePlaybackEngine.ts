@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type React from 'react';
 import { getMainAudioUrl, getRenderedAudioUrl, type ProjectState, type TimeSelection } from '../../../shared/api';
+import { isTauriRuntime } from '../../../shared/audio/nativeEngine';
 import { formatTime } from '../../../shared/utils/format';
+import { useNativePlayback } from './useNativePlayback';
 import { disposeAudioElement, getActiveStemTime, isEditableElement, useStemAudio, waitForMetadata } from './useStemAudio';
 
 export interface UsePlaybackEngineOptions {
@@ -18,7 +20,21 @@ export interface UsePlaybackEngineOptions {
 export function usePlaybackEngine({
   project, abMode, selection, trackDuration, playheadRef, playheadLineRef, playheadDiamondRef, timecodeRef,
 }: UsePlaybackEngineOptions) {
-  const mainTrack = project?.main_track ?? null;
+  const nativeActive = isTauriRuntime();
+  const native = useNativePlayback({
+    enabled: nativeActive,
+    project,
+    abMode,
+    selection,
+    trackDuration,
+    playheadRef,
+    playheadLineRef,
+    playheadDiamondRef,
+    timecodeRef,
+  });
+
+  const webProject = nativeActive ? null : project;
+  const mainTrack = webProject?.main_track ?? null;
   const stemsReady = mainTrack?.stems_status === 'ready';
   const [isPlaying, setIsPlaying] = useState(false);
   const [loopSelection, setLoopSelection] = useState(false);
@@ -46,7 +62,7 @@ export function usePlaybackEngine({
   const stopFromEnded = useCallback(() => { isPlayingRef.current = false; setIsPlaying(false); }, []);
   const {
     stemChannels, stemAudiosRef, ensureStemGraph, updateStemChannel, resetStemChannels,
-  } = useStemAudio(project, abMode, stemsReady, isStemPreviewRef, stopFromEnded);
+  } = useStemAudio(webProject, abMode, stemsReady, isStemPreviewRef, stopFromEnded);
 
   const isStemPreviewActive = useMemo(
     () => stemsReady && Object.values(stemChannels).some((c) => c.muted || c.solo || c.volume !== 100),
@@ -56,9 +72,9 @@ export function usePlaybackEngine({
   isStemPreviewRef.current = isStemPreviewActive;
 
   const activeAudioUrl = useMemo(() => {
-    if (!project || !project.main_track) return null;
-    return abMode === 'original' ? getMainAudioUrl(project) : getRenderedAudioUrl(project);
-  }, [project, abMode]);
+    if (!webProject || !webProject.main_track) return null;
+    return abMode === 'original' ? getMainAudioUrl(webProject) : getRenderedAudioUrl(webProject);
+  }, [webProject, abMode]);
 
   const updatePlayheadVisual = useCallback((t: number) => {
     currentTimeRef.current = t;
@@ -79,17 +95,18 @@ export function usePlaybackEngine({
   }, []);
 
   useEffect(() => {
+    if (nativeActive) return;
     resetStemChannels();
     updatePlayheadVisual(0);
     setDisplayTime(0);
     setAudioDuration(0);
     setAudioError(null);
-  }, [project?.id, mainTrack?.id, resetStemChannels, updatePlayheadVisual]);
+  }, [nativeActive, webProject?.id, mainTrack?.id, resetStemChannels, updatePlayheadVisual]);
 
   useEffect(() => {
     teardownMixAudio();
     stopFromEnded();
-    if (!project || !mainTrack) return;
+    if (nativeActive || !webProject || !mainTrack) return;
 
     const audio = new Audio();
     audio.preload = 'auto';
@@ -138,7 +155,7 @@ export function usePlaybackEngine({
       audio.removeEventListener('ended', onEnded);
       teardownMixAudio();
     };
-  }, [project?.id, mainTrack?.id, stopFromEnded, teardownMixAudio, updatePlayheadVisual]);
+  }, [nativeActive, webProject?.id, mainTrack?.id, stopFromEnded, teardownMixAudio, updatePlayheadVisual]);
 
   useEffect(() => {
     const audio = mixAudioRef.current;
@@ -280,6 +297,8 @@ export function usePlaybackEngine({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [mainTrack, handlePlayPause]);
+
+  if (nativeActive) return native;
 
   return {
     isPlaying, loopSelection, setLoopSelection, displayTime, audioDuration, loadingAudio, audioError,

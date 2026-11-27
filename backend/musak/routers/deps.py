@@ -84,15 +84,23 @@ def _enrich_project(project: ProjectState) -> ProjectState:
 def _mutate_and_render(
     project_id: str,
     mutator: Callable[[ProjectState], bool],
+    skip_render: bool = False,
 ) -> ProjectState:
-    """Serialize heavy DSP rendering per-project WITHOUT holding global `store._lock`."""
+    """Serialize heavy DSP rendering per-project WITHOUT holding global `store._lock`.
+
+    When `skip_render=True` (used by the native Rust real-time audio engine), edit JSON is persisted
+    immediately (<2ms) and `render_version` is bumped without writing offline WAV mixes to disk.
+    """
     with store.get_render_lock(project_id):
         working = store.get_project(project_id)
         if not mutator(working):
             return _enrich_project(working)
 
         if working.main_track is not None:
-            render_project_mix(store, working)
+            if skip_render:
+                working.render_version += 1
+            else:
+                render_project_mix(store, working)
 
         def _commit(latest: ProjectState) -> None:
             latest.edits = working.edits

@@ -181,11 +181,22 @@ def export_mix(
         )
         return _write_audio_export(polished, sr, out_path, audio_fmt)
 
-    src_wav = resolve_rendered_audio_path(store, project)
-    if src_wav is None:
-        raise FileNotFoundError("Main track audio file is missing on disk.")
+    ops = [op for blk in project.edits if blk.enabled for op in blk.operations]
+    versioned_wav = (
+        store.rendered_audio_path(project.id, project.render_version)
+        if project.render_version > 0
+        else None
+    )
+    if ops and (versioned_wav is None or not versioned_wav.is_file()):
+        from musak.dsp.pipeline import render_operations
 
-    audio, sr = sf.read(str(src_wav), dtype="float32", always_2d=True)
+        audio, sr = render_operations(store, project, ops)
+    else:
+        src_wav = resolve_rendered_audio_path(store, project)
+        if src_wav is None:
+            raise FileNotFoundError("Main track audio file is missing on disk.")
+        audio, sr = sf.read(str(src_wav), dtype="float32", always_2d=True)
+
     polished = apply_master_preset(audio, int(sr), master_preset)
     out_path = store.export_file_path(project.id, f"mix_v{project.render_version}_{exp_nonce}.{audio_fmt}")
     return _write_audio_export(polished, int(sr), out_path, audio_fmt)

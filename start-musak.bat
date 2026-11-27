@@ -1,6 +1,20 @@
 @echo off
 setlocal
-set "APP_DIR=%~dp0frontend"
+set "ROOT_DIR=%~dp0"
+set "APP_DIR=%ROOT_DIR%frontend"
+set "TAURI_REL=%ROOT_DIR%src-tauri\target\release\musak.exe"
+set "TAURI_DBG=%ROOT_DIR%src-tauri\target\debug\musak.exe"
+
+if exist "%TAURI_REL%" (
+  start "" "%TAURI_REL%"
+  exit /b 0
+)
+
+if exist "%TAURI_DBG%" (
+  start "" "%TAURI_DBG%"
+  exit /b 0
+)
+
 if not exist "%APP_DIR%\dist\index.html" (
   echo Building Musak frontend...
   pushd "%APP_DIR%"
