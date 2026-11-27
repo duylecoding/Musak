@@ -76,29 +76,6 @@ export function useProjectLifecycle({
   }, [refreshProjectList, setCurrentProject]);
 
   useEffect(() => {
-    return window.musakBridge?.onApiKeySynced?.(() => void refreshHealth());
-  }, [refreshHealth]);
-
-  useEffect(() => {
-    if (!backendOnline || !health || health.api_key_configured || !window.musakBridge?.getKeyStatus) return;
-    let cancelled = false;
-    let timer: number | null = null;
-    window.musakBridge
-      .getKeyStatus()
-      .then((status) => {
-        if (cancelled || !status.configured) return;
-        timer = window.setTimeout(() => {
-          if (!cancelled) void refreshHealth();
-        }, 1000);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-      if (timer !== null) window.clearTimeout(timer);
-    };
-  }, [backendOnline, health, refreshHealth]);
-
-  useEffect(() => {
     let cancelled = false;
     let retryTimer: number | null = null;
 

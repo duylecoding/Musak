@@ -11,7 +11,7 @@ import numpy as np
 import pedalboard as pb
 import soundfile as sf
 
-from musak.audio_analysis import ensure_stereo, resample_stereo, semitone_diff_between_keys
+from musak.audio_analysis import semitone_diff_between_keys
 from musak.config import STEM_NAMES
 from musak.dsp.cache import get_cached_borrowed_clip
 from musak.dsp.utils import _asymmetric_cosine_mask, _cosine_fade_mask, _read_audio_slice, snap_range_to_beats

@@ -3,19 +3,9 @@ export const AI_TIMEOUT_MS = 45_000;
 export const MEDIA_TIMEOUT_MS = 180_000;
 export const EXPORT_TIMEOUT_MS = 120_000;
 
-let backendBaseUrl = 'http://127.0.0.1:8765';
+const backendBaseUrl = 'http://127.0.0.1:8765';
 
 export async function initBackendUrl(): Promise<string> {
-  if (typeof window !== 'undefined' && window.musakBridge?.getBackendUrl) {
-    try {
-      const url = await window.musakBridge.getBackendUrl();
-      if (url) {
-        backendBaseUrl = url.replace(/\/+$/, '');
-      }
-    } catch {
-      // Keep default localhost backend URL
-    }
-  }
   return backendBaseUrl;
 }
 

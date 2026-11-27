@@ -157,6 +157,7 @@ pub struct TimelineSnapshot {
     pub main_buffer: Option<Arc<AudioBuffer>>,
     pub stems: [Option<Arc<AudioBuffer>>; 4],
     pub stem_gains: [f32; 4],
+    pub any_stem_solo: bool,
     pub layers: Vec<CompiledLayer>,
     pub fx_regions: Vec<CompiledFx>,
     pub loop_range: Option<(usize, usize)>,
@@ -172,6 +173,7 @@ impl TimelineSnapshot {
             main_buffer: None,
             stems: [None, None, None, None],
             stem_gains: [1.0; 4],
+            any_stem_solo: false,
             layers: Vec::new(),
             fx_regions: Vec::new(),
             loop_range: None,
@@ -208,7 +210,7 @@ pub fn stems_to_mask(stems: Option<&Vec<String>>) -> u8 {
     if mask == 0 { STEM_MASK_ALL } else { mask }
 }
 
-pub fn compute_stem_gains(mixer: &StemMixerInput) -> [f32; 4] {
+pub fn compute_stem_gains(mixer: &StemMixerInput) -> ([f32; 4], bool) {
     let chans = [&mixer.vocals, &mixer.drums, &mixer.bass, &mixer.other];
     let any_solo = chans.iter().any(|c| c.solo);
     let mut out = [1.0_f32; 4];
@@ -219,7 +221,7 @@ pub fn compute_stem_gains(mixer: &StemMixerInput) -> [f32; 4] {
             out[i] = (ch.volume / 100.0).clamp(0.0, 1.5);
         }
     }
-    out
+    (out, any_solo)
 }
 
 pub fn compile_edits(

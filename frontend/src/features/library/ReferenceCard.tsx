@@ -208,7 +208,7 @@ export const ReferenceCard: React.FC<ReferenceCardProps> = ({ reference, onOpenS
           )}
 
           {youtubeWatchUrl && (
-            <button type="button" onClick={() => (window.musakBridge?.openExternal ? void window.musakBridge.openExternal(youtubeWatchUrl) : window.open(youtubeWatchUrl, '_blank', 'noopener,noreferrer'))} className={styles.actionBtn}>
+            <button type="button" onClick={() => void window.open(youtubeWatchUrl, '_blank', 'noopener,noreferrer')} className={styles.actionBtn}>
               <ExternalLink size={12} /> Open on YouTube
             </button>
           )}

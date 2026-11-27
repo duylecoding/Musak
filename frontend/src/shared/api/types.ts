@@ -159,30 +159,3 @@ export interface ProjectState {
   redo_stack: EditBlock[];
   chat_messages: ChatMessage[];
 }
-
-export interface MusakKeyStatus {
-  configured: boolean;
-  encryptionAvailable: boolean;
-}
-
-export interface MusakKeyActionResult {
-  ok: boolean;
-  configured: boolean;
-  synced?: boolean;
-  error?: string;
-}
-
-export interface MusakBridge {
-  getKeyStatus: () => Promise<MusakKeyStatus>;
-  saveApiKey: (apiKey: string) => Promise<MusakKeyActionResult>;
-  clearApiKey: () => Promise<MusakKeyActionResult>;
-  openExternal: (url: string) => Promise<boolean>;
-  getBackendUrl: () => Promise<string>;
-  onApiKeySynced?: (cb: () => void) => () => void;
-}
-
-declare global {
-  interface Window {
-    musakBridge?: MusakBridge;
-  }
-}

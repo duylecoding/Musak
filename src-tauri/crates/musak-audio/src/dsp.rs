@@ -162,7 +162,7 @@ impl StereoBiquad {
     }
 }
 
-/// Fixed-capacity stereo delay/reverb ring buffer (allocated once at engine startup — zero RT allocs).
+/// Fixed-capacity stereo delay ring buffer (allocated once at engine startup — zero RT allocs).
 pub struct StereoDelayLine {
     buf_l: Vec<f32>,
     buf_r: Vec<f32>,
@@ -189,13 +189,109 @@ impl StereoDelayLine {
     pub fn tap(&mut self, in_l: f32, in_r: f32, delay_frames: usize, feedback: f32) -> (f32, f32) {
         let cap = self.buf_l.len();
         let d_l = delay_frames.clamp(1, cap - 1);
-        let d_r = (delay_frames + 173).clamp(1, cap - 1); // subtle stereo decorrelation
+        let d_r = (delay_frames + 173).clamp(1, cap - 1);
         let rl = self.buf_l[(self.write_pos + cap - d_l) % cap];
         let rr = self.buf_r[(self.write_pos + cap - d_r) % cap];
-        let fb = feedback.clamp(0.0, 0.88);
+        let fb = feedback.clamp(0.0, 0.85);
         self.buf_l[self.write_pos] = in_l + rl * fb;
         self.buf_r[self.write_pos] = in_r + rr * fb;
         self.write_pos = (self.write_pos + 1) % cap;
         (rl, rr)
+    }
+}
+
+struct DampedComb {
+    buf: Vec<f32>,
+    pos: usize,
+    filter_store: f32,
+}
+
+impl DampedComb {
+    fn new(len: usize) -> Self {
+        Self { buf: vec![0.0; len.max(16)], pos: 0, filter_store: 0.0 }
+    }
+
+    fn clear(&mut self) {
+        self.buf.fill(0.0);
+        self.pos = 0;
+        self.filter_store = 0.0;
+    }
+
+    #[inline]
+    fn process(&mut self, input: f32, feedback: f32, damp: f32) -> f32 {
+        let out = self.buf[self.pos];
+        self.filter_store = out * (1.0 - damp) + self.filter_store * damp;
+        self.buf[self.pos] = input + self.filter_store * feedback;
+        self.pos = (self.pos + 1) % self.buf.len();
+        out
+    }
+}
+
+struct Allpass {
+    buf: Vec<f32>,
+    pos: usize,
+}
+
+impl Allpass {
+    fn new(len: usize) -> Self {
+        Self { buf: vec![0.0; len.max(8)], pos: 0 }
+    }
+
+    fn clear(&mut self) {
+        self.buf.fill(0.0);
+        self.pos = 0;
+    }
+
+    #[inline]
+    fn process(&mut self, input: f32) -> f32 {
+        let buf_out = self.buf[self.pos];
+        let out = -input + buf_out;
+        self.buf[self.pos] = input + buf_out * 0.5;
+        self.pos = (self.pos + 1) % self.buf.len();
+        out
+    }
+}
+
+/// Smooth studio Freeverb-style stereo reverb (4 damped combs + 2 allpass diffusers per channel).
+pub struct StereoReverb {
+    combs_l: [DampedComb; 4],
+    combs_r: [DampedComb; 4],
+    allpass_l: [Allpass; 2],
+    allpass_r: [Allpass; 2],
+}
+
+impl StereoReverb {
+    pub fn new(sample_rate: u32) -> Self {
+        let scale = (sample_rate as f32) / 44100.0;
+        let s = |n: usize| ((n as f32) * scale).round().max(16.0) as usize;
+        let spread = s(23);
+        Self {
+            combs_l: [DampedComb::new(s(1116)), DampedComb::new(s(1188)), DampedComb::new(s(1277)), DampedComb::new(s(1356))],
+            combs_r: [DampedComb::new(s(1116) + spread), DampedComb::new(s(1188) + spread), DampedComb::new(s(1277) + spread), DampedComb::new(s(1356) + spread)],
+            allpass_l: [Allpass::new(s(556)), Allpass::new(s(441))],
+            allpass_r: [Allpass::new(s(556) + spread), Allpass::new(s(441) + spread)],
+        }
+    }
+
+    pub fn clear(&mut self) {
+        for c in &mut self.combs_l { c.clear(); }
+        for c in &mut self.combs_r { c.clear(); }
+        for a in &mut self.allpass_l { a.clear(); }
+        for a in &mut self.allpass_r { a.clear(); }
+    }
+
+    #[inline]
+    pub fn process_wet(&mut self, in_l: f32, in_r: f32, room_size: f32) -> (f32, f32) {
+        let mono_in = (in_l + in_r) * 0.08;
+        let fb = 0.68 + room_size.clamp(0.0, 1.0) * 0.24;
+        let damp = 0.42;
+
+        let mut out_l = 0.0_f32;
+        let mut out_r = 0.0_f32;
+        for c in &mut self.combs_l { out_l += c.process(mono_in, fb, damp); }
+        for c in &mut self.combs_r { out_r += c.process(mono_in, fb, damp); }
+        for a in &mut self.allpass_l { out_l = a.process(out_l); }
+        for a in &mut self.allpass_r { out_r = a.process(out_r); }
+        (out_l, out_r)
     }
 }

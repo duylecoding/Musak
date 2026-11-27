@@ -65,7 +65,7 @@ pub struct AudioEngine {
     seek_gen: Arc<AtomicU64>,
     file_cache: Mutex<HashMap<(String, u64, u64), Arc<AudioBuffer>>>,
     loaded: Mutex<Option<LoadedProjectAssets>>,
-    last_mixer: Mutex<[f32; 4]>,
+    last_mixer: Mutex<([f32; 4], bool)>,
     last_ab: Mutex<AbMode>,
     last_edits: Mutex<Vec<EditBlockInput>>,
     last_loop: Mutex<Option<(usize, usize)>>,
@@ -101,7 +101,7 @@ impl AudioEngine {
             seek_gen,
             file_cache: Mutex::new(HashMap::new()),
             loaded: Mutex::new(None),
-            last_mixer: Mutex::new([1.0; 4]),
+            last_mixer: Mutex::new(([1.0; 4], false)),
             last_ab: Mutex::new(AbMode::Remix),
             last_edits: Mutex::new(Vec::new()),
             last_loop: Mutex::new(None),
@@ -333,7 +333,7 @@ impl AudioEngine {
         };
         let edits = self.last_edits.lock().unwrap().clone();
         let ab_mode = *self.last_ab.lock().unwrap();
-        let stem_gains = *self.last_mixer.lock().unwrap();
+        let (stem_gains, any_stem_solo) = *self.last_mixer.lock().unwrap();
         let loop_range = *self.last_loop.lock().unwrap();
         let (layers, fx_regions) =
             compile_edits(&edits, &assets.clip_map, self.device_sr, assets.total_frames);
@@ -346,6 +346,7 @@ impl AudioEngine {
             main_buffer: assets.main_buffer.clone(),
             stems: assets.stems.clone(),
             stem_gains,
+            any_stem_solo,
             layers,
             fx_regions,
             loop_range,

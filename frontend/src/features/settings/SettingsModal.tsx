@@ -22,12 +22,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
   const [savingDevice, setSavingDevice] = useState(false);
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [electronKeyStored, setElectronKeyStored] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setFeedback(null);
-    window.musakBridge?.getKeyStatus?.().then((s) => setElectronKeyStored(s.configured)).catch(() => setElectronKeyStored(null));
   }, [open]);
 
   useEffect(() => {
@@ -39,10 +37,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
 
   if (!open) return null;
 
-  const isElectron = Boolean(window.musakBridge);
-  const isConfigured = Boolean(health?.api_key_configured || electronKeyStored);
+  const isConfigured = Boolean(health?.api_key_configured);
   const currentStemDevice: StemDevice = health?.stem_device ?? 'auto';
-  const handleOpenExternal = () => window.musakBridge?.openExternal ? void window.musakBridge.openExternal(GEMINI_KEY_URL) : void window.open(GEMINI_KEY_URL, '_blank', 'noopener,noreferrer');
+  const handleOpenExternal = () => void window.open(GEMINI_KEY_URL, '_blank', 'noopener,noreferrer');
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,16 +48,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
     setSaving(true);
     setFeedback(null);
     try {
-      if (window.musakBridge?.saveApiKey) {
-        const res = await window.musakBridge.saveApiKey(trimmed);
-        if (!res.ok) throw new Error(res.error || 'Failed to save API key securely.');
-        setElectronKeyStored(true);
-        if (backendOnline && !res.synced) await setBackendApiKey(trimmed);
-        setFeedback({ type: 'success', text: 'API key encrypted with Windows DPAPI and synced to local studio engine.' });
-      } else {
-        await setBackendApiKey(trimmed);
-        setFeedback({ type: 'success', text: 'API key sent to local backend memory (browser dev mode).' });
-      }
+      await setBackendApiKey(trimmed);
+      setFeedback({ type: 'success', text: 'API key saved to local studio backend memory.' });
       setApiKeyInput('');
       await refreshHealth();
     } catch (err) {
@@ -72,11 +61,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
     setClearing(true);
     setFeedback(null);
     try {
-      if (window.musakBridge?.clearApiKey) {
-        const res = await window.musakBridge.clearApiKey();
-        if (!res.ok) throw new Error(res.error || 'Failed to clear stored key.');
-        setElectronKeyStored(false);
-      } else { await clearBackendApiKey(); }
+      await clearBackendApiKey();
       await refreshHealth();
       setFeedback({ type: 'success', text: 'Gemini API key removed.' });
     } catch (err) {
@@ -127,9 +112,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
               <div className={styles.securityBox}>
                 <ShieldCheck size={16} className={styles.securityIcon} />
                 <div>
-                  {isElectron
-                    ? <>Encrypted locally using <span className={styles.emphasis}>Windows DPAPI</span> (Electron <code>safeStorage</code>) in your private OS app-data folder. Never saved in the project folder or browser storage.</>
-                    : <>Running in browser dev mode: key is held only in local Python backend memory and never written to disk or <code>localStorage</code>.</>}
+                  Held only in your local studio backend memory—never written into project folders or browser <code>localStorage</code>.
                 </div>
               </div>
               {feedback && <div className={`${styles.feedback} ${feedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError}`}>{feedback.text}</div>}

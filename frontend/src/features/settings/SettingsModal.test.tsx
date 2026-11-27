@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectContextValue } from '../../state/ProjectContext';
 import { TooltipProvider } from '../../shared/components/Tooltip/Tooltip';
 import { SettingsModal } from './SettingsModal';
@@ -99,17 +99,12 @@ function makeContext(overrides: Partial<ProjectContextValue> = {}): ProjectConte
 describe('SettingsModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete window.musakBridge;
     mockSetBackendApiKey.mockResolvedValue({ api_key_configured: true });
     mockClearBackendApiKey.mockResolvedValue({ api_key_configured: false });
     mockSetStemDevice.mockResolvedValue({ stem_device: 'cpu' });
   });
 
-  afterEach(() => {
-    delete window.musakBridge;
-  });
-
-  it('saves and clears API key in browser mode via backend API', async () => {
+  it('saves and clears API key via local backend API', async () => {
     const refreshHealth = vi.fn().mockResolvedValue(null);
     mockUseProject.mockReturnValue(
       makeContext({
@@ -147,18 +142,7 @@ describe('SettingsModal', () => {
     });
   });
 
-  it('uses Electron DPAPI musakBridge when available and updates stem splitting engine', async () => {
-    const saveApiKey = vi.fn().mockResolvedValue({ ok: true, configured: true, synced: true });
-    const clearApiKey = vi.fn().mockResolvedValue({ ok: true, configured: false });
-    const getKeyStatus = vi.fn().mockResolvedValue({ configured: true, encryptionAvailable: true });
-    window.musakBridge = {
-      getKeyStatus,
-      saveApiKey,
-      clearApiKey,
-      openExternal: vi.fn().mockResolvedValue(true),
-      getBackendUrl: vi.fn().mockResolvedValue('http://127.0.0.1:8765'),
-    };
-
+  it('switches stem splitting engine device and refreshes health', async () => {
     const refreshHealth = vi.fn().mockResolvedValue(null);
     mockUseProject.mockReturnValue(makeContext({ refreshHealth }));
 
@@ -168,26 +152,10 @@ describe('SettingsModal', () => {
       </TooltipProvider>
     );
 
-    await waitFor(() => expect(getKeyStatus).toHaveBeenCalled());
-
-    const input = screen.getByLabelText('Gemini API Key');
-    fireEvent.change(input, { target: { value: 'test-dummy-key' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save Key' }));
-
-    await waitFor(() => {
-      expect(saveApiKey).toHaveBeenCalledWith('test-dummy-key');
-    });
-    expect(mockSetBackendApiKey).not.toHaveBeenCalled();
-
     fireEvent.click(screen.getByRole('button', { name: /CPU \(Quiet\)/i }));
     await waitFor(() => {
       expect(mockSetStemDevice).toHaveBeenCalledWith('cpu');
     });
     expect(refreshHealth).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
-    await waitFor(() => {
-      expect(clearApiKey).toHaveBeenCalledTimes(1);
-    });
   });
 });
